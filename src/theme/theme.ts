@@ -1,0 +1,40 @@
+export const theme = {
+  colors: {
+    appBg: '#f6f8fa',
+    bg: '#0b1220',
+    bg2: '#0f1b33',
+    surface: '#ffffff',
+    surfaceAlt: '#0b1324',
+    text: '#0b1220',
+    textOnDark: '#ffffff',
+    muted: '#6e7781',
+    mutedOnDark: 'rgba(255,255,255,0.72)',
+    border: '#d0d7de',
+    primary: '#1f6feb',
+    primary2: '#00b4d8',
+    danger: '#b42318',
+    success: '#1a7f37',
+  },
+  radii: {
+    sm: 10,
+    md: 14,
+    lg: 18,
+    pill: 999,
+  },
+  spacing: {
+    xs: 6,
+    sm: 10,
+    md: 14,
+    lg: 18,
+    xl: 24,
+  },
+  shadow: {
+    card: {
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 3,
+    },
+  },
+} as const;
