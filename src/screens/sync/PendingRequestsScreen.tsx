@@ -4,7 +4,9 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { useApp } from '../../app/AppProvider';
 import { Card } from '../../components/Card';
+import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import type { AccountOpenRequest } from '../../models/types';
 import { listPendingOpenRequests } from '../../db/repo';
 import { formatINR } from '../../utils/money';
@@ -27,10 +29,10 @@ export function PendingRequestsScreen() {
   return (
     <Screen>
       <Card style={{ flex: 1 }}>
-        <Text style={styles.title}>Pending Account Requests ({rows.length})</Text>
+        <SectionHeader title={`Pending Requests (${rows.length})`} subtitle="Requests are included in the next export." icon="list-outline" />
         <View style={{ height: 10 }} />
         {rows.length === 0 ? (
-          <Text style={styles.empty}>No pending requests.</Text>
+          <EmptyState icon="checkmark-circle-outline" title="No pending requests" message="You’re all caught up." />
         ) : (
           <FlatList
             data={rows}
@@ -53,8 +55,6 @@ export function PendingRequestsScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
-  empty: { fontSize: 14, color: theme.colors.muted },
   row: { paddingVertical: 10 },
   rowTitle: { fontSize: 14, fontWeight: '900', color: theme.colors.text },
   rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },

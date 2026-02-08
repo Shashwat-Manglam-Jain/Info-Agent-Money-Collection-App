@@ -5,7 +5,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useApp } from '../../app/AppProvider';
 import { Card } from '../../components/Card';
+import { EmptyState } from '../../components/EmptyState';
 import { Screen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account } from '../../models/types';
@@ -36,19 +38,33 @@ export function AccountsScreen() {
     );
   }, [accounts, query]);
 
+  const hasAccounts = accounts.length > 0;
+
   return (
     <Screen>
       <Card>
-        <TextField label="Search Accounts" value={query} onChangeText={setQuery} placeholder="Name or Account No" />
+        <TextField
+          label="Search Accounts"
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Name or Account No"
+          leftIcon="search-outline"
+        />
       </Card>
 
-      <View style={{ height: 12 }} />
-
       <Card style={{ flex: 1 }}>
-        <Text style={styles.title}>Accounts ({filtered.length})</Text>
+        <SectionHeader title={`Accounts (${filtered.length})`} subtitle="Tap an account to view details." icon="people-outline" />
         <View style={{ height: 10 }} />
         {filtered.length === 0 ? (
-          <Text style={styles.empty}>No accounts.</Text>
+          hasAccounts ? (
+            <EmptyState icon="search-outline" title="No matches" message="Try a different name or account number." />
+          ) : (
+            <EmptyState
+              icon="person-circle-outline"
+              title="No accounts yet"
+              message="Import master data from Sync to see client accounts."
+            />
+          )
         ) : (
           <FlatList
             data={filtered}
@@ -71,8 +87,6 @@ export function AccountsScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
-  empty: { fontSize: 14, color: theme.colors.muted },
   row: { paddingVertical: 10 },
   rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
   rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },

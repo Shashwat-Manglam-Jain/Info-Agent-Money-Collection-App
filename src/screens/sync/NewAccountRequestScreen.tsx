@@ -6,6 +6,7 @@ import { useApp } from '../../app/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ScrollScreen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import { TextField } from '../../components/TextField';
 import { createAccountOpenRequest } from '../../db/repo';
 import type { RootStackParamList } from '../../navigation/types';
@@ -89,21 +90,38 @@ export function NewAccountRequestScreen({ navigation }: Props) {
   return (
     <ScrollScreen>
       <Card>
-        <Text style={styles.title}>New Account Opening Request</Text>
-        <Text style={styles.hint}>Saved on mobile and exported to Society computer for approval & passbook.</Text>
+        <SectionHeader
+          title="New Account Request"
+          subtitle="Saved on mobile and exported to Society computer for approval & passbook."
+          icon="person-add-outline"
+        />
       </Card>
 
       <Card>
         <View style={{ gap: 12 }}>
-          <TextField label="Client Name" value={clientName} onChangeText={setClientName} placeholder="Full name" />
+          <TextField
+            label="Client Name"
+            value={clientName}
+            onChangeText={setClientName}
+            placeholder="Full name"
+            leftIcon="person-outline"
+          />
           <TextField
             label="Phone (optional)"
             value={phone}
             onChangeText={(v) => setPhone(v.replace(/[^0-9+]/g, ''))}
             keyboardType="number-pad"
             placeholder="10-digit mobile"
+            leftIcon="call-outline"
+            autoCorrect={false}
           />
-          <TextField label="Address (optional)" value={address} onChangeText={setAddress} placeholder="Village / City" />
+          <TextField
+            label="Address (optional)"
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Village / City"
+            leftIcon="location-outline"
+          />
 
           <ChipRow
             label="Account Type"
@@ -133,11 +151,19 @@ export function NewAccountRequestScreen({ navigation }: Props) {
             onChangeText={(v) => setInstallmentText(v.replace(/[^0-9.]/g, ''))}
             keyboardType="numeric"
             placeholder="e.g. 50"
+            leftIcon="cash-outline"
+            autoCorrect={false}
           />
-          <TextField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Any remarks…" />
+          <TextField
+            label="Notes (optional)"
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Any remarks…"
+            leftIcon="document-text-outline"
+          />
 
-          <Button title={busy ? 'Saving…' : 'Save Request'} onPress={save} disabled={busy} />
-          <Button title="Cancel" variant="secondary" onPress={() => navigation.goBack()} disabled={busy} />
+          <Button title={busy ? 'Saving…' : 'Save Request'} iconLeft="save-outline" onPress={save} disabled={busy} />
+          <Button title="Cancel" variant="ghost" iconLeft="close-outline" onPress={() => navigation.goBack()} disabled={busy} />
         </View>
       </Card>
     </ScrollScreen>
@@ -145,8 +171,6 @@ export function NewAccountRequestScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: '900', color: theme.colors.text },
-  hint: { marginTop: 6, fontSize: 13, color: theme.colors.muted },
   label: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {

@@ -8,6 +8,7 @@ import { useApp } from '../../app/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ScrollScreen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import type { RootStackParamList } from '../../navigation/types';
 import { importMasterData } from '../../sync/importMasterData';
 import { getErrorMessage } from '../../utils/errors';
@@ -52,14 +53,15 @@ export function ImportMasterDataScreen({ navigation }: Props) {
   return (
     <ScrollScreen>
       <Card>
-        <Text style={styles.title}>Import Master Data</Text>
-        <Text style={styles.hint}>
-          Import Society + Agent + Client Account data (JSON) exported from your computer system.
-        </Text>
+        <SectionHeader
+          title="Import Master Data"
+          subtitle="Import Society + Agent + Client Account data (JSON) exported from your computer system."
+          icon="cloud-download-outline"
+        />
       </Card>
 
       <Card>
-        <Text style={styles.schemaTitle}>JSON schema (v1)</Text>
+        <SectionHeader title="JSON schema (v1)" icon="code-slash-outline" />
         <Text style={styles.schema}>
           {`{
   "schemaVersion": 1,
@@ -82,8 +84,19 @@ export function ImportMasterDataScreen({ navigation }: Props) {
 
       <Card>
         <View style={{ gap: 12 }}>
-          <Button title={busy ? 'Importing…' : 'Pick JSON File & Import'} onPress={pickAndImport} disabled={busy} />
-          <Button title="Back" variant="secondary" onPress={() => navigation.goBack()} disabled={busy} />
+          <Button
+            title={busy ? 'Importing…' : 'Pick JSON File & Import'}
+            iconLeft="folder-open-outline"
+            onPress={pickAndImport}
+            disabled={busy}
+          />
+          <Button
+            title="Back"
+            variant="ghost"
+            iconLeft="arrow-back-outline"
+            onPress={() => navigation.goBack()}
+            disabled={busy}
+          />
         </View>
       </Card>
     </ScrollScreen>
@@ -91,8 +104,5 @@ export function ImportMasterDataScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: '900', color: theme.colors.text },
-  hint: { marginTop: 6, fontSize: 13, color: theme.colors.muted },
-  schemaTitle: { fontSize: 14, fontWeight: '900', color: theme.colors.text },
   schema: { marginTop: 8, fontSize: 12, color: theme.colors.text },
 });

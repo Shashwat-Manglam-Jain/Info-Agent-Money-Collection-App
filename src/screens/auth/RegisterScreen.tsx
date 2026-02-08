@@ -8,6 +8,7 @@ import { setAgentPin } from '../../db/repo';
 import { AuthScreen } from '../../components/AuthScreen';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { InlineAlert } from '../../components/InlineAlert';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import { getErrorMessage } from '../../utils/errors';
@@ -21,32 +22,34 @@ export function RegisterScreen() {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<{ societyCode?: string; agentCode?: string; pin?: string; confirmPin?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   const submit = async () => {
     if (!db) return;
     const s = societyCode.trim();
     const a = agentCode.trim();
+    setFormError(null);
+
+    const next: { societyCode?: string; agentCode?: string; pin?: string; confirmPin?: string } = {};
     if (!s || !a) {
-      Alert.alert('Missing info', 'Society Code and Agent Code are required.');
-      return;
+      if (!s) next.societyCode = 'Society Code is required.';
+      if (!a) next.agentCode = 'Agent Code is required.';
     }
     if (pin.length < 4) {
-      Alert.alert('Weak PIN', 'PIN must be at least 4 digits.');
-      return;
+      next.pin = 'PIN must be at least 4 digits.';
     }
     if (pin !== confirmPin) {
-      Alert.alert('PIN mismatch', 'PIN and Confirm PIN must match.');
-      return;
+      next.confirmPin = 'PIN and Confirm PIN must match.';
     }
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
 
     setBusy(true);
     try {
       const ok = await setAgentPin({ db, societyCode: s, agentCode: a, pin });
       if (!ok) {
-        Alert.alert(
-          'Not found',
-          'Society/Agent not found. Import master data first, or check the codes.'
-        );
+        setFormError('Society/Agent not found. Import master data first, or check the codes.');
         return;
       }
       Alert.alert('PIN set', 'You can now sign in with your new PIN.');
@@ -66,46 +69,89 @@ export function RegisterScreen() {
     >
       <Card>
         <View style={{ gap: 12 }}>
+          {formError ? <InlineAlert message={formError} /> : null}
           <TextField
             label="Society Code"
             value={societyCode}
-            onChangeText={setSocietyCode}
+            onChangeText={(v) => {
+              setSocietyCode(v.toUpperCase());
+              setErrors((e) => ({ ...e, societyCode: undefined }));
+            }}
             placeholder="e.g. S001"
             autoCapitalize="characters"
+            leftIcon="business-outline"
+            error={errors.societyCode}
+            disabled={busy}
+            autoCorrect={false}
           />
           <TextField
             label="Agent Code"
             value={agentCode}
-            onChangeText={setAgentCode}
+            onChangeText={(v) => {
+              setAgentCode(v.toUpperCase());
+              setErrors((e) => ({ ...e, agentCode: undefined }));
+            }}
             placeholder="e.g. AG01"
             autoCapitalize="characters"
+            leftIcon="person-outline"
+            error={errors.agentCode}
+            disabled={busy}
+            autoCorrect={false}
           />
           <TextField
             label="New PIN"
             value={pin}
-            onChangeText={(v) => setPin(v.replace(/[^0-9]/g, ''))}
+            onChangeText={(v) => {
+              setPin(v.replace(/[^0-9]/g, ''));
+              setErrors((e) => ({ ...e, pin: undefined }));
+            }}
             keyboardType="number-pad"
             secureTextEntry
+            allowReveal
             hint="Minimum 4 digits."
+            leftIcon="key-outline"
+            error={errors.pin}
+            disabled={busy}
+            autoCorrect={false}
           />
           <TextField
             label="Confirm PIN"
             value={confirmPin}
-            onChangeText={(v) => setConfirmPin(v.replace(/[^0-9]/g, ''))}
+            onChangeText={(v) => {
+              setConfirmPin(v.replace(/[^0-9]/g, ''));
+              setErrors((e) => ({ ...e, confirmPin: undefined }));
+            }}
             keyboardType="number-pad"
             secureTextEntry
+            allowReveal
+            leftIcon="checkmark-circle-outline"
+            error={errors.confirmPin}
+            disabled={busy}
+            autoCorrect={false}
           />
 
-          <Button title="Save PIN" onPress={submit} loading={busy} />
+          <Button title="Save PIN" iconLeft="save-outline" onPress={submit} loading={busy} />
 
           <View style={styles.actions}>
-            <Button title="Import Data" variant="secondary" onPress={() => nav.navigate('ImportMasterData')} style={{ flex: 1 }} />
-            <Button title="Back" variant="secondary" onPress={() => nav.goBack()} style={{ flex: 1 }} />
+            <Button
+              title="Import Data"
+              variant="ghost"
+              iconLeft="cloud-download-outline"
+              onPress={() => nav.navigate('ImportMasterData')}
+              style={{ flex: 1 }}
+              disabled={busy}
+            />
+            <Button
+              title="Back"
+              variant="ghost"
+              iconLeft="arrow-back-outline"
+              onPress={() => nav.goBack()}
+              style={{ flex: 1 }}
+              disabled={busy}
+            />
           </View>
         </View>
       </Card>
-
-      <View style={{ height: 14 }} />
 
       <Card>
         <Text style={styles.hintTitle}>Tip</Text>

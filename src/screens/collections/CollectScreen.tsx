@@ -4,8 +4,11 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useApp } from '../../app/AppProvider';
+import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { EmptyState } from '../../components/EmptyState';
 import { ScrollScreen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, CollectionEntry } from '../../models/types';
@@ -19,6 +22,7 @@ export function CollectScreen() {
   const { db, society, agent } = useApp();
   const [digits, setDigits] = useState('');
   const [results, setResults] = useState<Account[]>([]);
+  const [searchedDigits, setSearchedDigits] = useState<string | null>(null);
   const [todayEntries, setTodayEntries] = useState<CollectionEntry[]>([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [todayCount, setTodayCount] = useState(0);
@@ -44,6 +48,7 @@ export function CollectScreen() {
 
   const doSearch = useCallback(async () => {
     if (!db || !society) return;
+    setSearchedDigits(digits);
     const r = await searchAccountsByLastDigits(db, society.id, digits);
     setResults(r);
   }, [db, digits, society]);
@@ -53,8 +58,11 @@ export function CollectScreen() {
   return (
     <ScrollScreen>
       <Card>
-        <Text style={styles.sectionTitle}>Quick Collect</Text>
-        <Text style={styles.sectionHint}>Enter last digits of Account No to fetch details.</Text>
+        <SectionHeader
+          title="Quick Collect"
+          subtitle="Enter last digits of Account No to fetch details."
+          icon="flash-outline"
+        />
         <View style={{ height: 10 }} />
         <TextField
           label="Last Digits"
@@ -62,45 +70,51 @@ export function CollectScreen() {
           onChangeText={(v) => setDigits(v.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
           placeholder="e.g. 1234"
+          leftIcon="keypad-outline"
+          autoCorrect={false}
         />
-        <View style={{ height: 10 }} />
-        <Pressable onPress={doSearch} style={styles.searchBtn} accessibilityRole="button">
-          <Text style={styles.searchBtnText}>Search</Text>
-        </Pressable>
+        <View style={{ height: 12 }} />
+        <Button title="Search" iconLeft="search-outline" onPress={doSearch} disabled={!digits.trim()} />
       </Card>
 
-      {results.length > 0 ? (
+      {searchedDigits ? (
         <Card>
-          <Text style={styles.sectionTitle}>Matches</Text>
-          <FlatList
-            data={results}
-            keyExtractor={(a) => a.id}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={styles.sep} />}
-            renderItem={({ item }) => (
-              <Pressable onPress={() => openAccount(item.id)} style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>
-                    {item.accountNo} • {item.clientName}
-                  </Text>
-                  <Text style={styles.rowSub}>
-                    {item.accountType} • {item.frequency} • Installment {formatINR(item.installmentPaise)}
-                  </Text>
-                </View>
-              </Pressable>
-            )}
-          />
+          <SectionHeader title="Matches" subtitle={`Account No ends with: ${searchedDigits}`} icon="list-outline" />
+          <View style={{ height: 10 }} />
+          {results.length === 0 ? (
+            <EmptyState icon="search-outline" title="No matches" message="Try different digits or check the account number." />
+          ) : (
+            <FlatList
+              data={results}
+              keyExtractor={(a) => a.id}
+              scrollEnabled={false}
+              ItemSeparatorComponent={() => <View style={styles.sep} />}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => openAccount(item.id)} style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle}>
+                      {item.accountNo} • {item.clientName}
+                    </Text>
+                    <Text style={styles.rowSub}>
+                      {item.accountType} • {item.frequency} • Installment {formatINR(item.installmentPaise)}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          )}
         </Card>
       ) : null}
 
       <Card>
-        <Text style={styles.sectionTitle}>Today ({today})</Text>
-        <Text style={styles.sectionHint}>
-          Entries: {todayCount} • Total: {formatINR(todayTotal)}
-        </Text>
+        <SectionHeader
+          title={`Today (${today})`}
+          subtitle={`Entries: ${todayCount} • Total: ${formatINR(todayTotal)}`}
+          icon="today-outline"
+        />
         <View style={{ height: 10 }} />
         {todayEntries.length === 0 ? (
-          <Text style={styles.empty}>No collections recorded yet.</Text>
+          <EmptyState icon="receipt-outline" title="No collections yet" message="Start with Quick Collect above." />
         ) : (
           <FlatList
             data={todayEntries}
@@ -123,16 +137,6 @@ export function CollectScreen() {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
-  sectionHint: { marginTop: 4, fontSize: 13, color: theme.colors.muted },
-  empty: { fontSize: 14, color: theme.colors.muted },
-  searchBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    borderRadius: theme.radii.sm,
-    alignItems: 'center',
-  },
-  searchBtnText: { color: theme.colors.textOnDark, fontSize: 16, fontWeight: '900' },
   row: { paddingVertical: 10 },
   rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
   rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },

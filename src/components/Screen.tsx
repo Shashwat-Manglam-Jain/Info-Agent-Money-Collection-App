@@ -14,7 +14,7 @@ export function Screen({ children }: PropsWithChildren) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: theme.colors.appBg },
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, padding: 16, gap: 12 },
 });
 
 export function ScrollScreen({ children }: PropsWithChildren) {

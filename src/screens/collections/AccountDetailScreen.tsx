@@ -5,6 +5,7 @@ import { useApp } from '../../app/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ScrollScreen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, CollectionEntry } from '../../models/types';
@@ -110,14 +111,15 @@ export function AccountDetailScreen({ route, navigation }: Props) {
       </Card>
 
       <Card>
-        <Text style={styles.sectionTitle}>Collect ({today})</Text>
-        {todayEntry ? (
-          <Text style={styles.sectionHint}>
-            Already saved today: {formatINR(todayEntry.collectedPaise)} ({todayEntry.collectedAt})
-          </Text>
-        ) : (
-          <Text style={styles.sectionHint}>No entry saved today for this account.</Text>
-        )}
+        <SectionHeader
+          title={`Collect (${today})`}
+          subtitle={
+            todayEntry
+              ? `Already saved today: ${formatINR(todayEntry.collectedPaise)} (${todayEntry.collectedAt})`
+              : 'No entry saved today for this account.'
+          }
+          icon="cash-outline"
+        />
         <View style={{ height: 10 }} />
         <TextField
           label="Received Amount (₹)"
@@ -125,14 +127,22 @@ export function AccountDetailScreen({ route, navigation }: Props) {
           onChangeText={(v) => setAmountText(v.replace(/[^0-9.]/g, ''))}
           keyboardType="numeric"
           placeholder="e.g. 50"
+          leftIcon="cash-outline"
+          autoCorrect={false}
         />
         <View style={{ height: 10 }} />
-        <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} placeholder="Cash / UPI / note…" />
+        <TextField
+          label="Remarks (optional)"
+          value={remarks}
+          onChangeText={setRemarks}
+          placeholder="Cash / UPI / note…"
+          leftIcon="chatbubble-ellipses-outline"
+        />
         {projectedBalance !== null ? (
           <Text style={styles.projected}>Projected balance: {formatINR(projectedBalance)}</Text>
         ) : null}
         <View style={{ height: 12 }} />
-        <Button title={saving ? 'Saving…' : 'Save Collection'} onPress={save} disabled={saving} />
+        <Button title={saving ? 'Saving…' : 'Save Collection'} iconLeft="save-outline" onPress={save} disabled={saving} />
       </Card>
     </ScrollScreen>
   );
@@ -142,7 +152,5 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '900', color: theme.colors.text },
   sub: { marginTop: 2, fontSize: 13, color: theme.colors.muted },
   kv: { marginTop: 4, fontSize: 13, color: theme.colors.text },
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
-  sectionHint: { marginTop: 4, fontSize: 13, color: theme.colors.muted },
   projected: { marginTop: 8, fontSize: 13, color: theme.colors.muted },
 });

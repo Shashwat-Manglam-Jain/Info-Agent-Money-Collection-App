@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../../app/AppProvider';
 import { Card } from '../../components/Card';
 import { ScrollScreen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import { getCollectionTotalsForDate, getPendingExportCounts } from '../../db/repo';
 import { toISODate } from '../../utils/dates';
 import { formatINR } from '../../utils/money';
@@ -37,14 +38,14 @@ export function ReportsScreen() {
   return (
     <ScrollScreen>
       <Card>
-        <Text style={styles.title}>Today ({today})</Text>
+        <SectionHeader title={`Today (${today})`} icon="today-outline" />
         <View style={{ height: 10 }} />
         <Text style={styles.kv}>Collections: {todayCount}</Text>
         <Text style={styles.kv}>Total Collected: {formatINR(todayTotal)}</Text>
       </Card>
 
       <Card>
-        <Text style={styles.title}>Pending Sync</Text>
+        <SectionHeader title="Pending Sync" icon="cloud-upload-outline" />
         <View style={{ height: 10 }} />
         <Text style={styles.kv}>Collections not exported: {pendingCollections}</Text>
         <Text style={styles.kv}>Account opening requests not exported: {pendingRequests}</Text>
@@ -54,6 +55,5 @@ export function ReportsScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
   kv: { marginTop: 6, fontSize: 14, color: theme.colors.text },
 });
