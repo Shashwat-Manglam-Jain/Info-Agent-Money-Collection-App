@@ -78,9 +78,9 @@ export function TextField({
 
 const styles = StyleSheet.create({
   wrapper: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '700', color: theme.colors.text },
+  label: { fontSize: 13, fontWeight: '800', color: theme.colors.text, letterSpacing: 0.2 },
   inputRow: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceTint,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
     borderRadius: theme.radii.sm,
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   leftIcon: { marginRight: 10 },
   input: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 11,
     fontSize: 16,
     color: theme.colors.text,
   },

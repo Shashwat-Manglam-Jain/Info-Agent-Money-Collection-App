@@ -38,7 +38,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
     setAccount(a);
     if (a) {
       navigation.setOptions({ title: a.accountNo });
-      setAmountText((prev) => (prev ? prev : paiseToRupeesText(a.installmentPaise)));
+      setAmountText((prev) => (prev ? prev : a.installmentPaise > 0 ? paiseToRupeesText(a.installmentPaise) : ''));
       const e = await getCollectionForAccountDate({ db, agentId: agent.id, accountId: a.id, collectionDate: today });
       setTodayEntry(e);
       setRemarks(e?.remarks ?? '');
@@ -100,7 +100,13 @@ export function AccountDetailScreen({ route, navigation }: Props) {
         </Text>
         <View style={{ height: 10 }} />
         <Text style={styles.kv}>Account No: {account.accountNo}</Text>
-        <Text style={styles.kv}>Installment: {formatINR(account.installmentPaise)}</Text>
+        <Text style={styles.kv}>
+          Account Head: {account.accountHead ?? '—'}
+          {account.accountHeadCode ? ` (${account.accountHeadCode})` : ''}
+        </Text>
+        <Text style={styles.kv}>
+          Installment: {account.installmentPaise > 0 ? formatINR(account.installmentPaise) : '—'}
+        </Text>
         <Text style={styles.kv}>
           Balance: {formatINR(account.balancePaise)} {account.accountType === 'LOAN' ? '(outstanding)' : ''}
         </Text>

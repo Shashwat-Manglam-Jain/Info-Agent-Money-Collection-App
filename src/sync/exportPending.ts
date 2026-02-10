@@ -2,9 +2,9 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type { AccountOpenRequest, Agent, CollectionEntry, Society } from '../models/types';
+import type { Agent, CollectionEntry, Society } from '../models/types';
 import { nowISO } from '../utils/dates';
-import { listPendingCollections, listPendingOpenRequests, markExported } from '../db/repo';
+import { listPendingCollections, markExported } from '../db/repo';
 
 export type ExportPayloadV1 = {
   schemaVersion: 1;
@@ -15,20 +15,6 @@ export type ExportPayloadV1 = {
     Pick<
       CollectionEntry,
       'id' | 'accountId' | 'accountNo' | 'collectedAt' | 'collectionDate' | 'collectedPaise' | 'remarks'
-    >
-  >;
-  accountOpenRequests: Array<
-    Pick<
-      AccountOpenRequest,
-      | 'id'
-      | 'clientName'
-      | 'phone'
-      | 'address'
-      | 'accountType'
-      | 'frequency'
-      | 'installmentPaise'
-      | 'requestedAt'
-      | 'notes'
     >
   >;
 };
@@ -43,14 +29,11 @@ export async function exportPendingAndShare(params: {
   db: SQLiteDatabase;
   society: Society;
   agent: Agent;
-}): Promise<{ fileUri: string; collections: number; openRequests: number } | null> {
+}): Promise<{ fileUri: string; collections: number } | null> {
   const exportedAt = nowISO();
-  const [collections, openRequests] = await Promise.all([
-    listPendingCollections({ db: params.db, agentId: params.agent.id }),
-    listPendingOpenRequests({ db: params.db, agentId: params.agent.id }),
-  ]);
+  const collections = await listPendingCollections({ db: params.db, agentId: params.agent.id });
 
-  if (collections.length === 0 && openRequests.length === 0) return null;
+  if (collections.length === 0) return null;
 
   const payload: ExportPayloadV1 = {
     schemaVersion: 1,
@@ -65,17 +48,6 @@ export async function exportPendingAndShare(params: {
       collectionDate: c.collectionDate,
       collectedPaise: c.collectedPaise,
       remarks: c.remarks,
-    })),
-    accountOpenRequests: openRequests.map((r) => ({
-      id: r.id,
-      clientName: r.clientName,
-      phone: r.phone,
-      address: r.address,
-      accountType: r.accountType,
-      frequency: r.frequency,
-      installmentPaise: r.installmentPaise,
-      requestedAt: r.requestedAt,
-      notes: r.notes,
     })),
   };
 
@@ -93,7 +65,6 @@ export async function exportPendingAndShare(params: {
     exportedAt,
     fileUri,
     collectionsIds: collections.map((c) => c.id),
-    openRequestIds: openRequests.map((r) => r.id),
   });
 
   if (await Sharing.isAvailableAsync()) {
@@ -103,5 +74,5 @@ export async function exportPendingAndShare(params: {
     });
   }
 
-  return { fileUri, collections: collections.length, openRequests: openRequests.length };
+  return { fileUri, collections: collections.length };
 }

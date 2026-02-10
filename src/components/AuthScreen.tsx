@@ -18,7 +18,7 @@ export function AuthScreen({ title, subtitle, children, footer}: Props) {
   return (
     <LinearGradient colors={[theme.colors.bg, theme.colors.bg2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
       <SafeAreaView style={styles.safe}>
-
+        <Image source={images.logo} style={styles.watermark} resizeMode="contain" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
@@ -55,12 +55,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   watermark: {
     position: 'absolute',
-    right: -60,
-    top: 40,
-    width: 240,
-    height: 240,
-    opacity: 0.12,
-    transform: [{ rotate: '8deg' }],
+    right: -40,
+    top: 20,
+    width: 220,
+    height: 220,
+    opacity: 0.08,
+    transform: [{ rotate: '10deg' }],
   },
   container: { flexGrow: 1, padding: theme.spacing.xl, gap: 14 },
   brand: { alignItems: 'center', gap: 6, marginTop: 4 },

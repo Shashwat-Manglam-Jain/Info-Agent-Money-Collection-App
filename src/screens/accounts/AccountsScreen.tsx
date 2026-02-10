@@ -13,6 +13,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { Account } from '../../models/types';
 import { listAccounts } from '../../db/repo';
 import { theme } from '../../theme';
+import { formatINR } from '../../utils/money';
 
 export function AccountsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -24,7 +25,7 @@ export function AccountsScreen() {
     useCallback(() => {
       (async () => {
         if (!db || !society) return;
-        const rows = await listAccounts(db, society.id, 500);
+        const rows = await listAccounts(db, society.id, 2000);
         setAccounts(rows);
       })();
     }, [db, society])
@@ -62,7 +63,7 @@ export function AccountsScreen() {
             <EmptyState
               icon="person-circle-outline"
               title="No accounts yet"
-              message="Import master data from Sync to see client accounts."
+              message="Import the daily TXT file from Sync to see client accounts."
             />
           )
         ) : (
@@ -76,6 +77,9 @@ export function AccountsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle}>{item.clientName}</Text>
                   <Text style={styles.rowSub}>{item.accountNo}</Text>
+                  <Text style={styles.rowMeta}>
+                    {(item.accountHead ?? item.accountType)} • {item.frequency} • Balance {formatINR(item.balancePaise)}
+                  </Text>
                 </View>
               </Pressable>
             )}
@@ -90,5 +94,6 @@ const styles = StyleSheet.create({
   row: { paddingVertical: 10 },
   rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
   rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },
+  rowMeta: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border },
 });

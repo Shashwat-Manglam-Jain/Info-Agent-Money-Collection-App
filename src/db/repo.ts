@@ -2,18 +2,7 @@ import * as Crypto from 'expo-crypto';
 
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import type {
-  Account,
-  AccountOpenRequest,
-  AccountStatus,
-  AccountType,
-  Agent,
-  CollectionEntry,
-  CollectionStatus,
-  Frequency,
-  OpenRequestStatus,
-  Society,
-} from '../models/types';
+import type { Account, AccountStatus, AccountType, Agent, CollectionEntry, CollectionStatus, Frequency, Society } from '../models/types';
 import { nowISO, toISODate } from '../utils/dates';
 
 function mapAgent(row: any): Agent {
@@ -39,6 +28,8 @@ function mapAccount(row: any): Account {
     clientName: row.client_name,
     accountType: row.account_type as AccountType,
     frequency: row.frequency as Frequency,
+    accountHead: row.account_head ?? null,
+    accountHeadCode: row.account_head_code ?? null,
     installmentPaise: row.installment_paise,
     balancePaise: row.balance_paise,
     lastTxnAt: row.last_txn_at ?? null,
@@ -64,22 +55,6 @@ function mapCollection(row: any): CollectionEntry {
   };
 }
 
-function mapOpenRequest(row: any): AccountOpenRequest {
-  return {
-    id: row.id,
-    societyId: row.society_id,
-    agentId: row.agent_id,
-    clientName: row.client_name,
-    phone: row.phone ?? null,
-    address: row.address ?? null,
-    accountType: row.account_type as AccountType,
-    frequency: row.frequency as Frequency,
-    installmentPaise: row.installment_paise,
-    requestedAt: row.requested_at,
-    status: row.status as OpenRequestStatus,
-    notes: row.notes ?? null,
-  };
-}
 
 async function sha256(input: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input);
@@ -108,29 +83,6 @@ export async function authenticateAgent(
   return { society: mapSociety(societyRow), agent: mapAgent(agentRow) };
 }
 
-export async function setAgentPin(params: {
-  db: SQLiteDatabase;
-  societyCode: string;
-  agentCode: string;
-  pin: string;
-}): Promise<boolean> {
-  const societyRow = await params.db.getFirstAsync<any>(
-    'SELECT * FROM societies WHERE code = ?;',
-    params.societyCode.trim().toUpperCase()
-  );
-  if (!societyRow) return false;
-
-  const agentRow = await params.db.getFirstAsync<any>(
-    'SELECT * FROM agents WHERE society_id = ? AND code = ?;',
-    societyRow.id,
-    params.agentCode.trim().toUpperCase()
-  );
-  if (!agentRow) return false;
-
-  const pinHash = await sha256(`${societyRow.id}:${params.pin}`);
-  await params.db.runAsync('UPDATE agents SET pin_hash = ?, is_active = 1 WHERE id = ?;', pinHash, agentRow.id);
-  return true;
-}
 
 export async function getSocietyById(db: SQLiteDatabase, societyId: string): Promise<Society | null> {
   const row = await db.getFirstAsync<any>('SELECT * FROM societies WHERE id = ?;', societyId);
@@ -171,7 +123,7 @@ export async function searchAccountsByLastDigits(
 export async function listAccounts(
   db: SQLiteDatabase,
   societyId: string,
-  limit: number = 200
+  limit: number = 2000
 ): Promise<Account[]> {
   const rows = await db.getAllAsync<any>(
     `SELECT * FROM accounts
@@ -182,6 +134,14 @@ export async function listAccounts(
     limit
   );
   return rows.map(mapAccount);
+}
+
+export async function getAccountCount(db: SQLiteDatabase, societyId: string): Promise<number> {
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM accounts WHERE society_id = ?;`,
+    societyId
+  );
+  return row?.count ?? 0;
 }
 
 export async function upsertCollectionForToday(params: {
@@ -287,16 +247,12 @@ export async function getCollectionTotalsForDate(params: {
 export async function getPendingExportCounts(params: {
   db: SQLiteDatabase;
   agentId: string;
-}): Promise<{ collections: number; openRequests: number }> {
+}): Promise<{ collections: number }> {
   const c = await params.db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) as count FROM collections WHERE agent_id = ? AND status = 'PENDING';`,
     params.agentId
   );
-  const r = await params.db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM account_open_requests WHERE agent_id = ? AND status = 'PENDING';`,
-    params.agentId
-  );
-  return { collections: c?.count ?? 0, openRequests: r?.count ?? 0 };
+  return { collections: c?.count ?? 0 };
 }
 
 export async function listPendingCollections(params: {
@@ -312,61 +268,12 @@ export async function listPendingCollections(params: {
   return rows.map(mapCollection);
 }
 
-export async function listPendingOpenRequests(params: {
-  db: SQLiteDatabase;
-  agentId: string;
-}): Promise<AccountOpenRequest[]> {
-  const rows = await params.db.getAllAsync<any>(
-    `SELECT * FROM account_open_requests
-     WHERE agent_id = ? AND status = 'PENDING'
-     ORDER BY requested_at ASC;`,
-    params.agentId
-  );
-  return rows.map(mapOpenRequest);
-}
-
-export async function createAccountOpenRequest(params: {
-  db: SQLiteDatabase;
-  societyId: string;
-  agentId: string;
-  clientName: string;
-  phone?: string | null;
-  address?: string | null;
-  accountType: AccountType;
-  frequency: Frequency;
-  installmentPaise: number;
-  notes?: string | null;
-}): Promise<AccountOpenRequest> {
-  const id = Crypto.randomUUID();
-  const requestedAt = nowISO();
-  await params.db.runAsync(
-    `INSERT INTO account_open_requests (
-        id, society_id, agent_id, client_name, phone, address,
-        account_type, frequency, installment_paise, requested_at, status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?);`,
-    id,
-    params.societyId,
-    params.agentId,
-    params.clientName,
-    params.phone ?? null,
-    params.address ?? null,
-    params.accountType,
-    params.frequency,
-    params.installmentPaise,
-    requestedAt,
-    params.notes ?? null
-  );
-  const row = await params.db.getFirstAsync<any>('SELECT * FROM account_open_requests WHERE id = ?;', id);
-  return mapOpenRequest(row);
-}
-
 export async function markExported(params: {
   db: SQLiteDatabase;
   agentId: string;
   exportedAt: string;
   fileUri: string | null;
   collectionsIds: string[];
-  openRequestIds: string[];
 }): Promise<void> {
   await params.db.withTransactionAsync(async () => {
     for (const id of params.collectionsIds) {
@@ -376,22 +283,26 @@ export async function markExported(params: {
         id
       );
     }
-    for (const id of params.openRequestIds) {
-      await params.db.runAsync(
-        `UPDATE account_open_requests SET status = 'EXPORTED' WHERE id = ?;`,
-        id
-      );
-    }
     await params.db.runAsync(
-      `INSERT INTO exports (id, society_id, agent_id, exported_at, file_uri, collections_count, open_requests_count)
-       VALUES (?, (SELECT society_id FROM agents WHERE id = ?), ?, ?, ?, ?, ?);`,
+      `INSERT INTO exports (id, society_id, agent_id, exported_at, file_uri, collections_count)
+       VALUES (?, (SELECT society_id FROM agents WHERE id = ?), ?, ?, ?, ?);`,
       Crypto.randomUUID(),
       params.agentId,
       params.agentId,
       params.exportedAt,
       params.fileUri,
-      params.collectionsIds.length,
-      params.openRequestIds.length
+      params.collectionsIds.length
     );
+  });
+}
+
+export async function clearAllData(db: SQLiteDatabase): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM collections;');
+    await db.runAsync('DELETE FROM exports;');
+    await db.runAsync('DELETE FROM accounts;');
+    await db.runAsync('DELETE FROM agents;');
+    await db.runAsync('DELETE FROM societies;');
+    await db.runAsync('DELETE FROM app_meta;');
   });
 }

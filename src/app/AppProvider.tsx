@@ -2,7 +2,6 @@ import React, { PropsWithChildren, createContext, useContext, useEffect, useMemo
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { getDb, initDb } from '../db/db';
-import { seedDemoData } from '../db/seed';
 import { authenticateAgent, getAgentById, getSocietyById } from '../db/repo';
 import type { Agent, Society } from '../models/types';
 import { clearSession, loadSession, saveSession } from '../storage/session';
@@ -36,8 +35,6 @@ export function AppProvider({ children }: PropsWithChildren) {
       try {
         const database = await getDb();
         await initDb();
-        await seedDemoData(database);
-
         if (!mounted) return;
         setDb(database);
 
@@ -87,4 +84,3 @@ export function AppProvider({ children }: PropsWithChildren) {
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
-

@@ -25,10 +25,9 @@ export async function initDb(): Promise<void> {
   if (version >= DB_VERSION) return;
 
   await db.withTransactionAsync(async () => {
-    if (version < 1) {
+    if (version < DB_VERSION) {
       await db.execAsync(MIGRATION_001);
-      await db.execAsync(`PRAGMA user_version = ${DB_VERSION};`);
     }
+    await db.execAsync(`PRAGMA user_version = ${DB_VERSION};`);
   });
 }
-

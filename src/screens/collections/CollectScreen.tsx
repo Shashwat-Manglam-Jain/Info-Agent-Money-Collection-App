@@ -12,7 +12,7 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, CollectionEntry } from '../../models/types';
-import { getCollectionTotalsForDate, listCollectionsForDate, searchAccountsByLastDigits } from '../../db/repo';
+import { getAccountCount, getCollectionTotalsForDate, listCollectionsForDate, searchAccountsByLastDigits } from '../../db/repo';
 import { toISODate } from '../../utils/dates';
 import { formatINR } from '../../utils/money';
 import { theme } from '../../theme';
@@ -26,19 +26,24 @@ export function CollectScreen() {
   const [todayEntries, setTodayEntries] = useState<CollectionEntry[]>([]);
   const [todayTotal, setTodayTotal] = useState(0);
   const [todayCount, setTodayCount] = useState(0);
+  const [totalAccounts, setTotalAccounts] = useState(0);
 
   const today = useMemo(() => toISODate(new Date()), []);
 
   const refreshToday = useCallback(async () => {
-    if (!db || !agent) return;
-    const [entries, totals] = await Promise.all([
+    if (!db || !agent || !society) return;
+    const [entries, totals, accountCount] = await Promise.all([
       listCollectionsForDate({ db, agentId: agent.id, collectionDate: today }),
       getCollectionTotalsForDate({ db, agentId: agent.id, collectionDate: today }),
+      getAccountCount(db, society.id),
     ]);
     setTodayEntries(entries);
     setTodayTotal(totals.totalPaise);
     setTodayCount(totals.count);
-  }, [agent, db, today]);
+    setTotalAccounts(accountCount);
+  }, [agent, db, society, today]);
+
+  const remainingCount = Math.max(totalAccounts - todayCount, 0);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,7 +101,7 @@ export function CollectScreen() {
                       {item.accountNo} • {item.clientName}
                     </Text>
                     <Text style={styles.rowSub}>
-                      {item.accountType} • {item.frequency} • Installment {formatINR(item.installmentPaise)}
+                      {(item.accountHead ?? item.accountType)} • {item.frequency} • Balance {formatINR(item.balancePaise)}
                     </Text>
                   </View>
                 </Pressable>
@@ -107,11 +112,11 @@ export function CollectScreen() {
       ) : null}
 
       <Card>
-        <SectionHeader
-          title={`Today (${today})`}
-          subtitle={`Entries: ${todayCount} • Total: ${formatINR(todayTotal)}`}
-          icon="today-outline"
-        />
+        <SectionHeader title={`Today (${today})`} subtitle="Daily progress summary" icon="today-outline" />
+        <View style={{ height: 10 }} />
+        <Text style={styles.kv}>Collected: {todayCount} / {totalAccounts}</Text>
+        <Text style={styles.kv}>Remaining clients: {remainingCount}</Text>
+        <Text style={styles.kv}>Total collected: {formatINR(todayTotal)}</Text>
         <View style={{ height: 10 }} />
         {todayEntries.length === 0 ? (
           <EmptyState icon="receipt-outline" title="No collections yet" message="Start with Quick Collect above." />
@@ -141,4 +146,5 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
   rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border },
+  kv: { marginTop: 4, fontSize: 13, color: theme.colors.text },
 });

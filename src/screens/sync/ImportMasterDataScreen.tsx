@@ -10,14 +10,14 @@ import { Card } from '../../components/Card';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
 import type { RootStackParamList } from '../../navigation/types';
-import { importMasterData } from '../../sync/importMasterData';
+import { DEFAULT_AGENT_PIN, importAgentReportText } from '../../sync/importAgentReport';
 import { getErrorMessage } from '../../utils/errors';
 import { theme } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImportMasterData'>;
 
 export function ImportMasterDataScreen({ navigation }: Props) {
-  const { db } = useApp();
+  const { db, signIn } = useApp();
   const [busy, setBusy] = useState(false);
 
   const pickAndImport = async () => {
@@ -25,7 +25,7 @@ export function ImportMasterDataScreen({ navigation }: Props) {
     setBusy(true);
     try {
       const res = await DocumentPicker.getDocumentAsync({
-        type: ['application/json', 'text/json'],
+        type: ['text/plain', 'text/*'],
         copyToCacheDirectory: true,
         multiple: false,
       });
@@ -35,14 +35,26 @@ export function ImportMasterDataScreen({ navigation }: Props) {
       if (!asset?.uri) throw new Error('No file selected');
 
       const text = await new File(asset.uri).text();
-      const json = JSON.parse(text);
-      const result = await importMasterData(db, json);
+      const result = await importAgentReportText(db, text);
+
+      const signedIn = await signIn({
+        societyCode: result.societyCode,
+        agentCode: result.agentCode,
+        pin: DEFAULT_AGENT_PIN,
+      });
+
+      if (!signedIn) {
+        Alert.alert(
+          'Imported, but sign in failed',
+          `Society: ${result.societyName} (${result.societyCode})\nAgent: ${result.agentCode}\nAccounts: ${result.accountsUpserted}\n\nTry signing in manually.`
+        );
+        return;
+      }
 
       Alert.alert(
         'Imported',
-        `Society: ${result.societyCode}\nAgents: ${result.agentsUpserted}\nAccounts: ${result.accountsUpserted}`
+        `Society: ${result.societyName} (${result.societyCode})\nAgent: ${result.agentCode}\nAccounts: ${result.accountsUpserted}`
       );
-      navigation.goBack();
     } catch (e: unknown) {
       Alert.alert('Import failed', getErrorMessage(e));
     } finally {
@@ -54,38 +66,30 @@ export function ImportMasterDataScreen({ navigation }: Props) {
     <ScrollScreen>
       <Card>
         <SectionHeader
-          title="Import Master Data"
-          subtitle="Import Society + Agent + Client Account data (JSON) exported from your computer system."
+          title="Import Daily Data (TXT)"
+          subtitle="Import the daily agent report text file shared by your admin. This replaces old data. PIN is set to 0000."
           icon="cloud-download-outline"
         />
       </Card>
 
       <Card>
-        <SectionHeader title="JSON schema (v1)" icon="code-slash-outline" />
+        <SectionHeader title="Expected format" icon="code-slash-outline" />
         <Text style={styles.schema}>
-          {`{
-  "schemaVersion": 1,
-  "society": { "code": "S001", "name": "My Society" },
-  "agents": [{ "code": "AG01", "name": "Agent Name", "phone": "999...", "pin": "1234" }],
-  "accounts": [{
-    "accountNo": "D-00001234",
-    "clientName": "Client Name",
-    "accountType": "PIGMY | LOAN | SAVINGS",
-    "frequency": "DAILY | WEEKLY | MONTHLY",
-    "installmentRupees": 50,
-    "balanceRupees": 1250,
-    "lastTxnAt": "2026-02-08T10:00:00.000Z",
-    "openedAt": "2025-01-01",
-    "closesAt": "2027-01-01"
-  }]
-}`}
+          {`PRIYADARSHANI MAHILA CREDIT SOCIETY, karanja     Date :- 19-01-2026
+main road - 442203
+Agent Wise Client Account Report
+Account Head:DAILY PIGMY ACCOUNT  007 Agent Name:Mr.GOURAV ... 00100005
+----------------------------------------------------------------------
+Ac No     Name                                       Balance
+----------------------------------------------------------------------
+00700034  TUKARAM BHABUTRAO GAVALI                    100.00`}
         </Text>
       </Card>
 
       <Card>
         <View style={{ gap: 12 }}>
           <Button
-            title={busy ? 'Importing…' : 'Pick JSON File & Import'}
+            title={busy ? 'Importing…' : 'Pick TXT File & Import'}
             iconLeft="folder-open-outline"
             onPress={pickAndImport}
             disabled={busy}

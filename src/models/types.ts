@@ -6,7 +6,6 @@ export type AccountStatus = 'ACTIVE' | 'CLOSED';
 
 export type CollectionStatus = 'PENDING' | 'EXPORTED';
 
-export type OpenRequestStatus = 'PENDING' | 'EXPORTED' | 'APPROVED' | 'REJECTED';
 
 export type Society = {
   id: string;
@@ -30,6 +29,8 @@ export type Account = {
   clientName: string;
   accountType: AccountType;
   frequency: Frequency;
+  accountHead: string | null;
+  accountHeadCode: string | null;
   installmentPaise: number;
   balancePaise: number;
   lastTxnAt: string | null;
@@ -50,20 +51,5 @@ export type CollectionEntry = {
   status: CollectionStatus;
   exportedAt: string | null;
   remarks: string | null;
-};
-
-export type AccountOpenRequest = {
-  id: string;
-  societyId: string;
-  agentId: string;
-  clientName: string;
-  phone: string | null;
-  address: string | null;
-  accountType: AccountType;
-  frequency: Frequency;
-  installmentPaise: number;
-  requestedAt: string;
-  status: OpenRequestStatus;
-  notes: string | null;
 };
 

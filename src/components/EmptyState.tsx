@@ -27,11 +27,10 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: theme.radii.pill,
-    backgroundColor: 'rgba(110,119,129,0.10)',
+    backgroundColor: theme.colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: { marginTop: 10, fontSize: 14, fontWeight: '900', color: theme.colors.text, textAlign: 'center' },
   message: { marginTop: 6, fontSize: 13, color: theme.colors.muted, textAlign: 'center', lineHeight: 18 },
 });
-

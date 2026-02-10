@@ -31,10 +31,12 @@ export function SectionHeader({ title, subtitle, icon, right }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconWrap: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: theme.radii.sm,
-    backgroundColor: 'rgba(31,111,235,0.10)',
+    backgroundColor: theme.colors.primarySoft,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(31,111,235,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },

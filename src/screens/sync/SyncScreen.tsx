@@ -8,7 +8,7 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
-import { getPendingExportCounts } from '../../db/repo';
+import { clearAllData, getPendingExportCounts } from '../../db/repo';
 import type { RootStackParamList } from '../../navigation/types';
 import { exportPendingAndShare } from '../../sync/exportPending';
 import { getErrorMessage } from '../../utils/errors';
@@ -18,14 +18,12 @@ export function SyncScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent, signOut } = useApp();
   const [pendingCollections, setPendingCollections] = useState(0);
-  const [pendingRequests, setPendingRequests] = useState(0);
   const [exporting, setExporting] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!db || !agent) return;
     const pending = await getPendingExportCounts({ db, agentId: agent.id });
     setPendingCollections(pending.collections);
-    setPendingRequests(pending.openRequests);
   }, [agent, db]);
 
   useFocusEffect(
@@ -48,40 +46,49 @@ export function SyncScreen() {
         <SectionHeader title="Pending" icon="time-outline" />
         <View style={{ height: 10 }} />
         <Text style={styles.kv}>Collections: {pendingCollections}</Text>
-        <Text style={styles.kv}>Account opening requests: {pendingRequests}</Text>
         <View style={{ height: 12 }} />
         <Button
-          title={exporting ? 'Exporting…' : 'Export Pending'}
+          title={exporting ? 'Exporting…' : 'Export & Clear Data'}
           variant="secondary"
           disabled={exporting}
           iconLeft="share-outline"
-          onPress={async () => {
+          onPress={() => {
             if (!db || !society || !agent) return;
-            setExporting(true);
-            try {
-              const result = await exportPendingAndShare({ db, society, agent });
-              if (!result) {
-                Alert.alert('Nothing to export', 'No pending collections or requests.');
-              } else {
-                Alert.alert(
-                  'Exported',
-                  `Collections: ${result.collections}\nRequests: ${result.openRequests}\nFile: ${result.fileUri}`
-                );
-              }
-              await refresh();
-            } catch (e: unknown) {
-              Alert.alert('Export failed', getErrorMessage(e));
-            } finally {
-              setExporting(false);
-            }
+            Alert.alert(
+              'Export & clear data',
+              'After export, all local data will be removed and you will be logged out.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Continue',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setExporting(true);
+                    try {
+                      const result = await exportPendingAndShare({ db, society, agent });
+                      if (!result) {
+                        Alert.alert('Nothing to export', 'No pending collections.');
+                        return;
+                      }
+                      await clearAllData(db);
+                      await signOut();
+                      Alert.alert(
+                        'Exported',
+                        `Collections: ${result.collections}\nFile: ${result.fileUri}\n\nLocal data cleared.`
+                      );
+                    } catch (e: unknown) {
+                      Alert.alert('Export failed', getErrorMessage(e));
+                    } finally {
+                      setExporting(false);
+                    }
+                  },
+                },
+              ]
+            );
           }}
         />
         <View style={{ height: 10 }} />
-        <Button title="Import Master Data" iconLeft="cloud-download-outline" onPress={() => nav.navigate('ImportMasterData')} />
-        <View style={{ height: 10 }} />
-        <Button title="New Account Request" iconLeft="person-add-outline" onPress={() => nav.navigate('NewAccountRequest')} />
-        <View style={{ height: 10 }} />
-        <Button title="Pending Requests" variant="secondary" iconLeft="list-outline" onPress={() => nav.navigate('PendingRequests')} />
+        <Button title="Import Daily Data" iconLeft="cloud-download-outline" onPress={() => nav.navigate('ImportMasterData')} />
       </Card>
 
       <Card>

@@ -9,13 +9,10 @@ import type { MainTabParamList, RootStackParamList } from './types';
 import { AccountsScreen } from '../screens/accounts/AccountsScreen';
 import { AppSplashScreen } from '../screens/auth/AppSplashScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
-import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { AccountDetailScreen } from '../screens/collections/AccountDetailScreen';
 import { CollectScreen } from '../screens/collections/CollectScreen';
 import { ReportsScreen } from '../screens/collections/ReportsScreen';
 import { ImportMasterDataScreen } from '../screens/sync/ImportMasterDataScreen';
-import { NewAccountRequestScreen } from '../screens/sync/NewAccountRequestScreen';
-import { PendingRequestsScreen } from '../screens/sync/PendingRequestsScreen';
 import { SyncScreen } from '../screens/sync/SyncScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -86,27 +83,16 @@ export function RootNavigator() {
             <RootStack.Screen
               name="ImportMasterData"
               component={ImportMasterDataScreen}
-              options={{ title: 'Import Data' }}
-            />
-            <RootStack.Screen
-              name="NewAccountRequest"
-              component={NewAccountRequestScreen}
-              options={{ title: 'New Request' }}
-            />
-            <RootStack.Screen
-              name="PendingRequests"
-              component={PendingRequestsScreen}
-              options={{ title: 'Pending Requests' }}
+              options={{ title: 'Import Daily Data' }}
             />
           </>
         ) : (
           <>
             <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <RootStack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
             <RootStack.Screen
               name="ImportMasterData"
               component={ImportMasterDataScreen}
-              options={{ title: 'Import Data' }}
+              options={{ title: 'Import Daily Data' }}
             />
           </>
         )}
