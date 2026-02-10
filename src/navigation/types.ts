@@ -2,7 +2,7 @@ export type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
   AccountDetail: { accountId: string };
-  ImportMasterData: undefined;
+  ImportMasterData: { mode?: 'replace' | 'add' } | undefined;
 };
 
 export type MainTabParamList = {

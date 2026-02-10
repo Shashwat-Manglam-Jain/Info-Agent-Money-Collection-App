@@ -1,10 +1,11 @@
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { Image, type ImageSourcePropType, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { images } from '../assets/images';
-import { theme } from '../theme';
+import { useTheme } from '../theme';
+import type { Theme } from '../theme';
 
 type Props = PropsWithChildren<{
   title: string;
@@ -15,6 +16,8 @@ type Props = PropsWithChildren<{
 }>;
 
 export function AuthScreen({ title, subtitle, children, footer}: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <LinearGradient colors={[theme.colors.bg, theme.colors.bg2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
       <SafeAreaView style={styles.safe}>
@@ -51,33 +54,34 @@ export function AuthScreen({ title, subtitle, children, footer}: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  watermark: {
-    position: 'absolute',
-    right: -40,
-    top: 20,
-    width: 220,
-    height: 220,
-    opacity: 0.08,
-    transform: [{ rotate: '10deg' }],
-  },
-  container: { flexGrow: 1, padding: theme.spacing.xl, gap: 14 },
-  brand: { alignItems: 'center', gap: 6, marginTop: 4 },
-  logo: { width: 46, height: 46 },
-  brandTitle: { color: theme.colors.textOnDark, fontSize: 16, fontWeight: '900', letterSpacing: 0.3 },
-  brandSub: { color: theme.colors.mutedOnDark, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
-  heroImageWrap: {
-    borderRadius: theme.radii.lg,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  heroImage: { width: '100%', height: 170 },
-  hero: { alignItems: 'center', gap: 6, marginTop: 2 },
-  title: { color: theme.colors.textOnDark, fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  subtitle: { color: theme.colors.mutedOnDark, fontSize: 13, textAlign: 'center', lineHeight: 18 },
-  body: { flexGrow: 1, justifyContent: 'center', gap: theme.spacing.md },
-  footer: { paddingTop: 6 },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safe: { flex: 1 },
+    watermark: {
+      position: 'absolute',
+      right: -40,
+      top: 20,
+      width: 220,
+      height: 220,
+      opacity: 0.08,
+      transform: [{ rotate: '10deg' }],
+    },
+    container: { flexGrow: 1, padding: theme.spacing.xl, gap: 14 },
+    brand: { alignItems: 'center', gap: 6, marginTop: 4 },
+    logo: { width: 46, height: 46 },
+    brandTitle: { color: theme.colors.textOnDark, fontSize: 16, fontWeight: '900', letterSpacing: 0.3 },
+    brandSub: { color: theme.colors.mutedOnDark, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+    heroImageWrap: {
+      borderRadius: theme.radii.lg,
+      overflow: 'hidden',
+      backgroundColor: 'rgba(255,255,255,0.06)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.16)',
+    },
+    heroImage: { width: '100%', height: 170 },
+    hero: { alignItems: 'center', gap: 6, marginTop: 2 },
+    title: { color: theme.colors.textOnDark, fontSize: 22, fontWeight: '900', textAlign: 'center' },
+    subtitle: { color: theme.colors.mutedOnDark, fontSize: 13, textAlign: 'center', lineHeight: 18 },
+    body: { flexGrow: 1, justifyContent: 'center', gap: theme.spacing.md },
+    footer: { paddingTop: 6 },
+  });

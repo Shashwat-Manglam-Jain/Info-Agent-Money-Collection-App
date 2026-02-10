@@ -2,8 +2,8 @@ import React, { PropsWithChildren, createContext, useContext, useEffect, useMemo
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { getDb, initDb } from '../db/db';
-import { authenticateAgent, getAgentById, getSocietyById } from '../db/repo';
-import type { Agent, Society } from '../models/types';
+import { authenticateAgent, getActiveLot, getAgentById, getSocietyById, saveActiveLot } from '../db/repo';
+import type { ActiveLot, Agent, Society } from '../models/types';
 import { clearSession, loadSession, saveSession } from '../storage/session';
 
 type AppContextValue = {
@@ -11,6 +11,8 @@ type AppContextValue = {
   db: SQLiteDatabase | null;
   society: Society | null;
   agent: Agent | null;
+  activeLot: ActiveLot | null;
+  setActiveLot: (lot: ActiveLot | null) => Promise<void>;
   signIn: (params: { societyCode: string; agentCode: string; pin: string }) => Promise<boolean>;
   signOut: () => Promise<void>;
 };
@@ -28,6 +30,7 @@ export function AppProvider({ children }: PropsWithChildren) {
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [society, setSociety] = useState<Society | null>(null);
   const [agent, setAgent] = useState<Agent | null>(null);
+  const [activeLot, setActiveLotState] = useState<ActiveLot | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -37,6 +40,9 @@ export function AppProvider({ children }: PropsWithChildren) {
         await initDb();
         if (!mounted) return;
         setDb(database);
+
+        const storedLot = await getActiveLot(database);
+        if (storedLot && mounted) setActiveLotState(storedLot);
 
         const session = await loadSession();
         if (!session) return;
@@ -64,6 +70,12 @@ export function AppProvider({ children }: PropsWithChildren) {
       db,
       society,
       agent,
+      activeLot,
+      setActiveLot: async (lot) => {
+        if (!db) return;
+        setActiveLotState(lot);
+        await saveActiveLot(db, lot);
+      },
       signIn: async ({ societyCode, agentCode, pin }) => {
         if (!db) return false;
         const auth = await authenticateAgent(db, societyCode.trim(), agentCode.trim(), pin);
@@ -79,7 +91,7 @@ export function AppProvider({ children }: PropsWithChildren) {
         await clearSession();
       },
     }),
-    [agent, db, ready, society]
+    [activeLot, agent, db, ready, society]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

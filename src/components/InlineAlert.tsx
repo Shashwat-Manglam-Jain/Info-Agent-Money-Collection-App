@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../theme';
+import type { Theme } from '../theme';
 import { Icon, type IconName } from './Icon';
 
 type Tone = 'error' | 'info';
@@ -11,22 +13,26 @@ type Props = {
   icon?: IconName;
 };
 
-const tones: Record<Tone, { border: string; bg: string; iconColor: string; defaultIcon: IconName }> = {
-  error: {
-    border: 'rgba(180,35,24,0.25)',
-    bg: 'rgba(180,35,24,0.06)',
-    iconColor: theme.colors.danger,
-    defaultIcon: 'alert-circle-outline',
-  },
-  info: {
-    border: 'rgba(31,111,235,0.25)',
-    bg: 'rgba(31,111,235,0.08)',
-    iconColor: theme.colors.primary,
-    defaultIcon: 'information-circle-outline',
-  },
-};
-
 export function InlineAlert({ message, tone = 'error', icon }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const tones = useMemo<Record<Tone, { border: string; bg: string; iconColor: string; defaultIcon: IconName }>>(
+    () => ({
+      error: {
+        border: 'rgba(180,35,24,0.35)',
+        bg: 'rgba(180,35,24,0.12)',
+        iconColor: theme.colors.danger,
+        defaultIcon: 'alert-circle-outline',
+      },
+      info: {
+        border: 'rgba(56,189,248,0.35)',
+        bg: 'rgba(56,189,248,0.12)',
+        iconColor: theme.colors.primary,
+        defaultIcon: 'information-circle-outline',
+      },
+    }),
+    [theme]
+  );
   const t = tones[tone];
   return (
     <View style={[styles.box, { borderColor: t.border, backgroundColor: t.bg }]}>
@@ -36,15 +42,15 @@ export function InlineAlert({ message, tone = 'error', icon }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderRadius: theme.radii.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  text: { flex: 1, fontSize: 13, color: theme.colors.text, fontWeight: '700' },
-});
-
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    box: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 10,
+      borderRadius: theme.radii.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+    text: { flex: 1, fontSize: 13, color: theme.colors.text, fontWeight: '700' },
+  });

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../theme';
+import type { Theme } from '../theme';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -35,6 +36,8 @@ export function TextField({
   disabled,
   autoCorrect = true,
 }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [revealed, setRevealed] = useState(false);
   const canReveal = Boolean(allowReveal && secureTextEntry);
   return (
@@ -76,7 +79,8 @@ export function TextField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   wrapper: { gap: 6 },
   label: { fontSize: 13, fontWeight: '800', color: theme.colors.text, letterSpacing: 0.2 },
   inputRow: {

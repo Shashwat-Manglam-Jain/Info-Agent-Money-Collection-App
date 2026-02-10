@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../theme';
+import type { Theme } from '../theme';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -12,6 +14,8 @@ type Props = {
 };
 
 export function SectionHeader({ title, subtitle, icon, right }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.row}>
       {icon ? (
@@ -28,7 +32,8 @@ export function SectionHeader({ title, subtitle, icon, right }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconWrap: {
     width: 34,
@@ -36,7 +41,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.sm,
     backgroundColor: theme.colors.primarySoft,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(31,111,235,0.22)',
+    borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

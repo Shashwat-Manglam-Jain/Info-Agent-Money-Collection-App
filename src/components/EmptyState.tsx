@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../theme';
+import type { Theme } from '../theme';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -10,6 +12,8 @@ type Props = {
 };
 
 export function EmptyState({ icon, title, message }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
     <View style={styles.wrap}>
       <View style={styles.icon}>
@@ -21,7 +25,8 @@ export function EmptyState({ icon, title, message }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   wrap: { alignItems: 'center', paddingVertical: 18, paddingHorizontal: 10 },
   icon: {
     width: 46,

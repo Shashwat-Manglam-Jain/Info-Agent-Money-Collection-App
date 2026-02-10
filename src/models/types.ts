@@ -53,3 +53,36 @@ export type CollectionEntry = {
   remarks: string | null;
 };
 
+export type ExportRecord = {
+  id: string;
+  societyId: string;
+  agentId: string;
+  exportedAt: string;
+  fileUri: string | null;
+  collectionsCount: number;
+};
+
+export type ExportCollectionRow = CollectionEntry & {
+  clientName: string;
+  accountHead: string | null;
+  accountHeadCode: string | null;
+  accountType: AccountType;
+  frequency: Frequency;
+};
+
+export type AccountLot = {
+  key: string;
+  accountHead: string | null;
+  accountHeadCode: string | null;
+  accountType: AccountType;
+  frequency: Frequency;
+  count: number;
+};
+
+export type ActiveLot = {
+  key: string;
+  accountHead: string | null;
+  accountHeadCode: string | null;
+  accountType: AccountType;
+  frequency: Frequency;
+};

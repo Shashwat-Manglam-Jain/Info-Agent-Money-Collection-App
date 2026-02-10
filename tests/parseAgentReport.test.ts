@@ -55,6 +55,25 @@ Ac No     Name                                       Balance
 03400001  SAMPLE PERSON                             1,200.50  
 `;
 
+const sampleSeparateAgentLine = `SOCIETY NAME                 Date :- 05-02-2026
+Agent Wise Client Account Report
+Account Head:DAILY PIGMY ACCOUNT  007
+Agent Name:Mr.SEPARATE LINE  00000009
+----------------------------------------------------------------------
+Ac No     Name                                       Balance  
+----------------------------------------------------------------------
+00700001  FIRST CLIENT                              50.00  
+`;
+
+const sampleNoHeadCode = `SOCIETY NAME                 Date :- 06-02-2026
+Agent Wise Client Account Report
+Account Head:MONTHLY RECURRING DEPOSIT Agent Name:Mr.NO HEADCODE  00000010
+----------------------------------------------------------------------
+Ac No     Name                                       Balance  
+----------------------------------------------------------------------
+03400002  SECOND CLIENT                             100.00  
+`;
+
 describe('parseAgentReportText', () => {
   it('parses agent, head, and accounts from sample 1', () => {
     const report = parseAgentReportText(sample1);
@@ -67,6 +86,7 @@ describe('parseAgentReportText', () => {
     expect(report.accounts[0].accountHeadCode).toBe('007');
     expect(report.accounts[0].accountNo).toBe('00700116');
     expect(report.accounts[0].balanceRupees).toBe(650);
+    expect(report.accounts[0].installmentRupees).toBe(650);
   });
 
   it('parses long names and agent code from sample 2', () => {
@@ -80,5 +100,22 @@ describe('parseAgentReportText', () => {
   it('parses comma separated balances', () => {
     const report = parseAgentReportText(sampleComma);
     expect(report.accounts[0].balanceRupees).toBe(1200.5);
+    expect(report.accounts[0].installmentRupees).toBe(1200.5);
+  });
+
+  it('parses agent name when on separate line', () => {
+    const report = parseAgentReportText(sampleSeparateAgentLine);
+    expect(report.agentCode).toBe('00000009');
+    expect(report.agentName).toBe('Mr.SEPARATE LINE');
+    expect(report.accounts.length).toBe(1);
+    expect(report.accounts[0].accountHead).toBe('DAILY PIGMY ACCOUNT');
+    expect(report.accounts[0].accountHeadCode).toBe('007');
+  });
+
+  it('handles account head without code', () => {
+    const report = parseAgentReportText(sampleNoHeadCode);
+    expect(report.agentCode).toBe('00000010');
+    expect(report.accounts[0].accountHead).toBe('MONTHLY RECURRING DEPOSIT');
+    expect(report.accounts[0].accountHeadCode).toBeNull();
   });
 });

@@ -4,6 +4,7 @@ export type ParsedAccount = {
   accountNo: string;
   clientName: string;
   balanceRupees: number;
+  installmentRupees?: number;
   accountType: AccountType;
   frequency: Frequency;
   accountHead: string;
@@ -19,13 +20,13 @@ export type ParsedReport = {
   accounts: ParsedAccount[];
 };
 
-function makeSocietyCode(name: string): string {
+export function makeSocietyCode(name: string): string {
   const cleaned = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   if (cleaned.length >= 4) return cleaned.slice(0, 6);
   return 'SOCIETY';
 }
 
-function normalizeFrequency(text: string): Frequency {
+export function normalizeFrequency(text: string): Frequency {
   const v = text.toUpperCase();
   if (v.includes('DAILY')) return 'DAILY';
   if (v.includes('WEEKLY')) return 'WEEKLY';
@@ -33,7 +34,7 @@ function normalizeFrequency(text: string): Frequency {
   return 'MONTHLY';
 }
 
-function normalizeAccountType(text: string): AccountType {
+export function normalizeAccountType(text: string): AccountType {
   const v = text.toUpperCase();
   if (v.includes('PIGMY') || v.includes('PIGMI')) return 'PIGMY';
   if (v.includes('LOAN')) return 'LOAN';
@@ -41,7 +42,7 @@ function normalizeAccountType(text: string): AccountType {
   return 'SAVINGS';
 }
 
-function parseDateISO(line: string): string | null {
+export function parseDateISO(line: string): string | null {
   const match = line.match(/(\d{2})-(\d{2})-(\d{4})/);
   if (!match) return null;
   const [, dd, mm, yyyy] = match;
@@ -126,10 +127,12 @@ export function parseAgentReportText(text: string): ParsedReport {
       if (!rowMatch) continue;
       const [, accountNo, name, balanceRaw] = rowMatch;
       const balance = Number(balanceRaw.replace(/,/g, ''));
+      const normalizedBalance = Number.isFinite(balance) ? balance : 0;
       accounts.push({
         accountNo: accountNo.trim(),
         clientName: name.replace(/\s{2,}/g, ' ').trim(),
-        balanceRupees: Number.isFinite(balance) ? balance : 0,
+        balanceRupees: normalizedBalance,
+        installmentRupees: normalizedBalance,
         accountType: currentAccountType,
         frequency: currentFrequency,
         accountHead: currentHead,

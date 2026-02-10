@@ -1,7 +1,8 @@
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { parseAgentReportText } from './parseAgentReport';
+import { parseAgentReportText, type ParsedReport } from './parseAgentReport';
+import { parseAgentReportExcel } from './parseAgentReportExcel';
 import { rupeesToPaise } from '../utils/money';
 
 export const DEFAULT_AGENT_PIN = '0000' as const;
@@ -11,18 +12,19 @@ async function sha256(input: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, input);
 }
 
-export async function importAgentReportText(
-  db: SQLiteDatabase,
-  text: string,
-  options: { replaceExisting?: boolean } = {}
-): Promise<{
+type ImportResult = {
   societyCode: string;
   societyName: string;
   agentCode: string;
   agentName: string;
   accountsUpserted: number;
-}> {
-  const report = parseAgentReportText(text);
+};
+
+export async function importParsedReport(
+  db: SQLiteDatabase,
+  report: ParsedReport,
+  options: { replaceExisting?: boolean } = {}
+): Promise<ImportResult> {
   const societyCode = report.societyCode;
   const societyName = report.societyName.trim();
 
@@ -35,7 +37,6 @@ export async function importAgentReportText(
       await db.runAsync('DELETE FROM accounts;');
       await db.runAsync('DELETE FROM agents;');
       await db.runAsync('DELETE FROM societies;');
-      await db.runAsync('DELETE FROM app_meta;');
     }
 
     const existingSociety = await db.getFirstAsync<any>('SELECT * FROM societies WHERE code = ?;', societyCode);
@@ -76,7 +77,8 @@ export async function importAgentReportText(
 
     for (const a of report.accounts) {
       const lastTxnAt = report.reportDateISO ?? null;
-      const balancePaise = rupeesToPaise(a.balanceRupees);
+      const balancePaise = rupeesToPaise(a.balanceRupees ?? 0);
+      const installmentPaise = rupeesToPaise(a.installmentRupees ?? 0);
       const existing = await db.getFirstAsync<any>(
         'SELECT id FROM accounts WHERE society_id = ? AND account_no = ?;',
         societyId,
@@ -95,7 +97,7 @@ export async function importAgentReportText(
           a.frequency,
           a.accountHead,
           a.accountHeadCode,
-          0,
+          installmentPaise,
           balancePaise,
           lastTxnAt,
           existing.id
@@ -115,7 +117,7 @@ export async function importAgentReportText(
           a.frequency,
           a.accountHead,
           a.accountHeadCode,
-          0,
+          installmentPaise,
           balancePaise,
           lastTxnAt,
           null,
@@ -132,4 +134,22 @@ export async function importAgentReportText(
     agentName: report.agentName,
     accountsUpserted: report.accounts.length,
   };
+}
+
+export async function importAgentReportText(
+  db: SQLiteDatabase,
+  text: string,
+  options: { replaceExisting?: boolean } = {}
+): Promise<ImportResult> {
+  const report = parseAgentReportText(text);
+  return importParsedReport(db, report, options);
+}
+
+export async function importAgentReportExcel(
+  db: SQLiteDatabase,
+  base64: string,
+  options: { replaceExisting?: boolean } = {}
+): Promise<ImportResult> {
+  const report = parseAgentReportExcel(base64);
+  return importParsedReport(db, report, options);
 }

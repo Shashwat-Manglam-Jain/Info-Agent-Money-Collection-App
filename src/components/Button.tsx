@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { theme } from '../theme';
+import { useTheme } from '../theme';
+import type { Theme } from '../theme';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -16,6 +18,8 @@ type Props = {
 };
 
 export function Button({ title, onPress, disabled, loading, variant = 'primary', style, iconLeft, iconRight, iconSize }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const isDisabled = disabled || loading;
   const tint = variant === 'ghost' || variant === 'secondary' ? theme.colors.primary : theme.colors.textOnDark;
   return (
@@ -47,7 +51,8 @@ export function Button({ title, onPress, disabled, loading, variant = 'primary',
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
   base: {
     paddingVertical: 13,
     paddingHorizontal: 16,
@@ -60,7 +65,7 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: theme.colors.primarySoft,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(31,111,235,0.25)',
+    borderColor: theme.colors.border,
   },
   danger: { backgroundColor: theme.colors.danger },
   ghost: {
