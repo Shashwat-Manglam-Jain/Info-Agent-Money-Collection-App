@@ -1,21 +1,18 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View, Dimensions, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
+import { TextInput, TouchableOpacity, Text } from 'react-native';
 import { useApp } from '../../app/AppProvider';
 import { setAgentPin } from '../../db/repo';
-import { AuthScreen } from '../../components/AuthScreen';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
-import { getErrorMessage } from '../../utils/errors';
-import { theme } from '../../theme';
+
+const { height: screenHeight } = Dimensions.get('window');
 
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db } = useApp();
+  
   const [societyCode, setSocietyCode] = useState('');
   const [agentCode, setAgentCode] = useState('');
   const [pin, setPin] = useState('');
@@ -26,100 +23,216 @@ export function RegisterScreen() {
     if (!db) return;
     const s = societyCode.trim();
     const a = agentCode.trim();
-    if (!s || !a) {
-      Alert.alert('Missing info', 'Society Code and Agent Code are required.');
+    
+    if (!s || !a || pin.length < 4 || pin !== confirmPin) {
       return;
     }
-    if (pin.length < 4) {
-      Alert.alert('Weak PIN', 'PIN must be at least 4 digits.');
-      return;
-    }
-    if (pin !== confirmPin) {
-      Alert.alert('PIN mismatch', 'PIN and Confirm PIN must match.');
-      return;
-    }
-
+    
     setBusy(true);
     try {
-      const ok = await setAgentPin({ db, societyCode: s, agentCode: a, pin });
-      if (!ok) {
-        Alert.alert(
-          'Not found',
-          'Society/Agent not found. Import master data first, or check the codes.'
-        );
-        return;
-      }
-      Alert.alert('PIN set', 'You can now sign in with your new PIN.');
+      await setAgentPin({ db, societyCode: s, agentCode: a, pin });
       nav.goBack();
     } catch (e: unknown) {
-      Alert.alert('Failed', getErrorMessage(e));
+      console.error('Failed to set PIN:', e);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <AuthScreen
-      title="Register / Set PIN"
-      subtitle="First time on this phone? Import master data, then set your PIN for secure login."
-      footer={<Text style={styles.footerText}>PIN is stored securely on device and validated locally.</Text>}
-    >
-      <Card>
-        <View style={{ gap: 12 }}>
-          <TextField
-            label="Society Code"
-            value={societyCode}
-            onChangeText={setSocietyCode}
-            placeholder="e.g. S001"
-            autoCapitalize="characters"
-          />
-          <TextField
-            label="Agent Code"
-            value={agentCode}
-            onChangeText={setAgentCode}
-            placeholder="e.g. AG01"
-            autoCapitalize="characters"
-          />
-          <TextField
-            label="New PIN"
-            value={pin}
-            onChangeText={(v) => setPin(v.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            secureTextEntry
-            hint="Minimum 4 digits."
-          />
-          <TextField
-            label="Confirm PIN"
-            value={confirmPin}
-            onChangeText={(v) => setConfirmPin(v.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            secureTextEntry
-          />
+    <View style={styles.container}>
+      <Image 
+        source={require('../../../assets/login.png')} 
+        style={styles.fullImage}
+        resizeMode="contain"
+      />
 
-          <Button title="Save PIN" onPress={submit} loading={busy} />
+      <View style={styles.contentContainer}>
+        <Text style={styles.registerTitle}>Register</Text>
 
-          <View style={styles.actions}>
-            <Button title="Import Data" variant="secondary" onPress={() => nav.navigate('ImportMasterData')} style={{ flex: 1 }} />
-            <Button title="Back" variant="secondary" onPress={() => nav.goBack()} style={{ flex: 1 }} />
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Society Code</Text>
+          {/* <Text style={styles.hintText}>provided by society</Text> */}
+          <View style={styles.inputField}>
+            <TextInput
+              style={styles.textInput}
+              value={societyCode}
+              onChangeText={setSocietyCode}
+              placeholder=""
+              autoCapitalize="characters"
+            />
           </View>
         </View>
-      </Card>
 
-      <View style={{ height: 14 }} />
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Agent Code</Text>
+          {/* <Text style={styles.hintText}>provided by society</Text> */}
+          <View style={styles.inputField}>
+            <TextInput
+              style={styles.textInput}
+              value={agentCode}
+              onChangeText={setAgentCode}
+              placeholder=""
+              autoCapitalize="characters"
+            />
+          </View>
+        </View>
 
-      <Card>
-        <Text style={styles.hintTitle}>Tip</Text>
-        <Text style={styles.hint}>
-          If your Society provides a PIN in master data, you can skip registration and sign in directly.
-        </Text>
-      </Card>
-    </AuthScreen>
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>New PIN</Text>
+          {/* <Text style={styles.hintText}>Minimum 4 digits</Text> */}
+          <View style={styles.inputField}>
+            <TextInput
+              style={styles.textInput}
+              value={pin}
+              onChangeText={(v) => setPin(v.replace(/[^0-9]/g, ''))}
+              placeholder=""
+              keyboardType="number-pad"
+              secureTextEntry
+            />
+          </View>
+        </View>
+
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>Confirm PIN</Text>
+          <View style={styles.inputField}>
+            <TextInput
+              style={styles.textInput}
+              value={confirmPin}
+              onChangeText={(v) => setConfirmPin(v.replace(/[^0-9]/g, ''))}
+              placeholder=""
+              keyboardType="number-pad"
+              secureTextEntry
+            />
+          </View>
+        </View>
+
+        <View style={styles.saveButtonContainer}>
+          <TouchableOpacity 
+            style={[styles.saveButton, busy && styles.saveButtonDisabled]} 
+            onPress={submit}
+            disabled={busy}
+          >
+            <Text style={styles.saveButtonText}>Save PIN</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity 
+            style={styles.importButton}
+            onPress={() => nav.navigate('ImportMasterData')}
+          >
+            <Text style={styles.importButtonText}>IMPORT DATA</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => nav.goBack()}
+          >
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: 'row', gap: 10 },
-  hintTitle: { fontSize: 14, fontWeight: '900', color: theme.colors.text },
-  hint: { marginTop: 6, fontSize: 13, color: theme.colors.muted },
-  footerText: { textAlign: 'center', color: theme.colors.mutedOnDark, fontSize: 12 },
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  fullImage: {
+    width: '100%',
+    height: screenHeight * 0.4,
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 10,
+    paddingTop: 0,
+  },
+  registerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  formSection: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 3,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 5,
+    fontStyle: 'italic',
+  },
+  inputField: {
+    backgroundColor: '#f8f8f8',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    height: 48,
+    justifyContent: 'center',
+  },
+  textInput: {
+    fontSize: 16,
+    color: '#333',
+    padding: 0,
+  },
+  saveButtonContainer: {
+    marginBottom: 15,
+    marginTop: 8,
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#A5D6A7',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 5,
+  },
+  importButton: {
+    flex: 1,
+    backgroundColor: '#2196F3',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  importButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    flex: 1,
+    backgroundColor: '#757575',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });
