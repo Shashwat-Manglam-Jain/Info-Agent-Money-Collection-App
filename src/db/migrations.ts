@@ -1,7 +1,15 @@
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export const MIGRATION_001 = `
-PRAGMA foreign_keys = ON;
+PRAGMA foreign_keys = OFF;
+
+DROP TABLE IF EXISTS collections;
+DROP TABLE IF EXISTS accounts;
+DROP TABLE IF EXISTS agents;
+DROP TABLE IF EXISTS societies;
+DROP TABLE IF EXISTS exports;
+DROP TABLE IF EXISTS account_open_requests;
+DROP TABLE IF EXISTS app_meta;
 
 CREATE TABLE IF NOT EXISTS app_meta (
   key TEXT PRIMARY KEY NOT NULL,
@@ -32,6 +40,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   client_name TEXT NOT NULL,
   account_type TEXT NOT NULL,
   frequency TEXT NOT NULL,
+  account_head TEXT,
+  account_head_code TEXT,
   installment_paise INTEGER NOT NULL DEFAULT 0,
   balance_paise INTEGER NOT NULL DEFAULT 0,
   last_txn_at TEXT,
@@ -62,31 +72,15 @@ CREATE TABLE IF NOT EXISTS collections (
 CREATE INDEX IF NOT EXISTS idx_collections_agent_date ON collections(agent_id, collection_date);
 CREATE INDEX IF NOT EXISTS idx_collections_status ON collections(status);
 
-CREATE TABLE IF NOT EXISTS account_open_requests (
-  id TEXT PRIMARY KEY NOT NULL,
-  society_id TEXT NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
-  agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-  client_name TEXT NOT NULL,
-  phone TEXT,
-  address TEXT,
-  account_type TEXT NOT NULL,
-  frequency TEXT NOT NULL,
-  installment_paise INTEGER NOT NULL DEFAULT 0,
-  requested_at TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'PENDING',
-  notes TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_openreq_agent_status ON account_open_requests(agent_id, status);
-
 CREATE TABLE IF NOT EXISTS exports (
   id TEXT PRIMARY KEY NOT NULL,
   society_id TEXT NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
   agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   exported_at TEXT NOT NULL,
   file_uri TEXT,
-  collections_count INTEGER NOT NULL,
-  open_requests_count INTEGER NOT NULL DEFAULT 0
+  collections_count INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_exports_agent_time ON exports(agent_id, exported_at);
-`;
 
+PRAGMA foreign_keys = ON;
+`;

@@ -1,16 +1,19 @@
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider } from './src/app/AppProvider';
+import { ThemedStatusBar } from './src/components/ThemedStatusBar';
+import { ThemeProvider } from './src/theme';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </AppProvider>
+      <ThemeProvider>
+        <AppProvider>
+          <RootNavigator />
+          <ThemedStatusBar />
+        </AppProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

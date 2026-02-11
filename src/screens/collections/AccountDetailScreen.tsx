@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useApp } from '../../app/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
+import { SectionHeader } from '../../components/SectionHeader';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, CollectionEntry } from '../../models/types';
 import { getAccountById, getCollectionForAccountDate, upsertCollectionForToday } from '../../db/repo';
 import { toISODate } from '../../utils/dates';
 import { formatINR, paiseToRupees, rupeesToPaise } from '../../utils/money';
-import { theme } from '../../theme';
+import { useTheme } from '../../theme';
+import type { Theme } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AccountDetail'>;
 
@@ -23,11 +26,16 @@ function paiseToRupeesText(paise: number): string {
 export function AccountDetailScreen({ route, navigation }: Props) {
   const { accountId } = route.params;
   const { db, society, agent } = useApp();
+  const theme = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [account, setAccount] = useState<Account | null>(null);
   const [todayEntry, setTodayEntry] = useState<CollectionEntry | null>(null);
   const [amountText, setAmountText] = useState('');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
 
   const today = useMemo(() => toISODate(new Date()), []);
 
@@ -37,7 +45,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
     setAccount(a);
     if (a) {
       navigation.setOptions({ title: a.accountNo });
-      setAmountText((prev) => (prev ? prev : paiseToRupeesText(a.installmentPaise)));
+      setAmountText((prev) => (prev ? prev : a.installmentPaise > 0 ? paiseToRupeesText(a.installmentPaise) : ''));
       const e = await getCollectionForAccountDate({ db, agentId: agent.id, accountId: a.id, collectionDate: today });
       setTodayEntry(e);
       setRemarks(e?.remarks ?? '');
@@ -48,6 +56,12 @@ export function AccountDetailScreen({ route, navigation }: Props) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
   const projectedBalance = useMemo(() => {
     if (!account) return null;
     const amount = rupeesToPaise(Number(amountText));
@@ -56,11 +70,37 @@ export function AccountDetailScreen({ route, navigation }: Props) {
     return account.balancePaise + amount;
   }, [account, amountText]);
 
+  const showToast = useCallback((message: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMessage(message);
+    toastTimer.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  }, []);
+
+  const applyEdit = useCallback(() => {
+    if (todayEntry) {
+      setAmountText(paiseToRupeesText(todayEntry.collectedPaise));
+      setRemarks(todayEntry.remarks ?? '');
+    }
+    setToastMessage(null);
+  }, [todayEntry]);
+
+  const closePopup = () => setPopup(null);
+
+  const showMessage = (title: string, message?: string) => {
+    setPopup({
+      title,
+      message,
+      actions: [{ label: 'OK', onPress: closePopup }],
+    });
+  };
+
   const save = async () => {
     if (!db || !society || !agent || !account) return;
     const amount = rupeesToPaise(Number(amountText));
     if (!Number.isFinite(amount) || amount <= 0) {
-      Alert.alert('Invalid amount', 'Enter a valid received amount.');
+      showMessage('Invalid amount', 'Enter a valid received amount.');
       return;
     }
     setSaving(true);
@@ -74,7 +114,9 @@ export function AccountDetailScreen({ route, navigation }: Props) {
         remarks: remarks.trim() ? remarks.trim() : null,
       });
       setTodayEntry(entry);
-      Alert.alert('Saved', `Recorded ${formatINR(entry.collectedPaise)} for ${account.accountNo}.`);
+      setAmountText(paiseToRupeesText(entry.collectedPaise));
+      setRemarks(entry.remarks ?? '');
+      showToast(`Successfully paid ${formatINR(entry.collectedPaise)}.`);
     } finally {
       setSaving(false);
     }
@@ -99,7 +141,13 @@ export function AccountDetailScreen({ route, navigation }: Props) {
         </Text>
         <View style={{ height: 10 }} />
         <Text style={styles.kv}>Account No: {account.accountNo}</Text>
-        <Text style={styles.kv}>Installment: {formatINR(account.installmentPaise)}</Text>
+        <Text style={styles.kv}>
+          Account Head: {account.accountHead ?? '—'}
+          {account.accountHeadCode ? ` (${account.accountHeadCode})` : ''}
+        </Text>
+        <Text style={styles.kv}>
+          Installment: {account.installmentPaise > 0 ? formatINR(account.installmentPaise) : '—'}
+        </Text>
         <Text style={styles.kv}>
           Balance: {formatINR(account.balancePaise)} {account.accountType === 'LOAN' ? '(outstanding)' : ''}
         </Text>
@@ -110,14 +158,23 @@ export function AccountDetailScreen({ route, navigation }: Props) {
       </Card>
 
       <Card>
-        <Text style={styles.sectionTitle}>Collect ({today})</Text>
+        <SectionHeader
+          title={`Collect (${today})`}
+          subtitle={
+            todayEntry
+              ? `Already saved today: ${formatINR(todayEntry.collectedPaise)} (${todayEntry.collectedAt})`
+              : 'No entry saved today for this account.'
+          }
+          icon="cash-outline"
+        />
         {todayEntry ? (
-          <Text style={styles.sectionHint}>
-            Already saved today: {formatINR(todayEntry.collectedPaise)} ({todayEntry.collectedAt})
-          </Text>
-        ) : (
-          <Text style={styles.sectionHint}>No entry saved today for this account.</Text>
-        )}
+          <View style={styles.savedRow}>
+            <Text style={styles.savedText}>Saved: {formatINR(todayEntry.collectedPaise)}</Text>
+            <Pressable onPress={applyEdit} style={styles.editChip}>
+              <Text style={styles.editChipText}>Edit</Text>
+            </Pressable>
+          </View>
+        ) : null}
         <View style={{ height: 10 }} />
         <TextField
           label="Received Amount (₹)"
@@ -125,24 +182,90 @@ export function AccountDetailScreen({ route, navigation }: Props) {
           onChangeText={(v) => setAmountText(v.replace(/[^0-9.]/g, ''))}
           keyboardType="numeric"
           placeholder="e.g. 50"
+          leftIcon="cash-outline"
+          autoCorrect={false}
         />
         <View style={{ height: 10 }} />
-        <TextField label="Remarks (optional)" value={remarks} onChangeText={setRemarks} placeholder="Cash / UPI / note…" />
+        <TextField
+          label="Remarks (optional)"
+          value={remarks}
+          onChangeText={setRemarks}
+          placeholder="Cash / UPI / note…"
+          leftIcon="chatbubble-ellipses-outline"
+        />
         {projectedBalance !== null ? (
           <Text style={styles.projected}>Projected balance: {formatINR(projectedBalance)}</Text>
         ) : null}
         <View style={{ height: 12 }} />
-        <Button title={saving ? 'Saving…' : 'Save Collection'} onPress={save} disabled={saving} />
+        <Button
+          title={saving ? 'Saving…' : todayEntry ? 'Update Collection' : 'Save Collection'}
+          iconLeft="save-outline"
+          onPress={save}
+          disabled={saving}
+        />
       </Card>
+      {toastMessage ? (
+        <Card style={styles.toastCard}>
+          <View style={styles.toastRow}>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+            <Pressable onPress={applyEdit} style={styles.toastAction}>
+              <Text style={styles.toastActionText}>Edit</Text>
+            </Pressable>
+          </View>
+        </Card>
+      ) : null}
+      <PopupModal
+        visible={!!popup}
+        title={popup?.title ?? ''}
+        message={popup?.message}
+        actions={popup?.actions}
+        onDismiss={closePopup}
+      />
     </ScrollScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  title: { fontSize: 18, fontWeight: '900', color: theme.colors.text },
-  sub: { marginTop: 2, fontSize: 13, color: theme.colors.muted },
-  kv: { marginTop: 4, fontSize: 13, color: theme.colors.text },
-  sectionTitle: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
-  sectionHint: { marginTop: 4, fontSize: 13, color: theme.colors.muted },
-  projected: { marginTop: 8, fontSize: 13, color: theme.colors.muted },
-});
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    title: { fontSize: 18, fontWeight: '900', color: theme.colors.text },
+    sub: { marginTop: 2, fontSize: 13, color: theme.colors.muted },
+    kv: { marginTop: 4, fontSize: 13, color: theme.colors.text },
+    projected: { marginTop: 8, fontSize: 13, color: theme.colors.muted },
+    savedRow: {
+      marginTop: 10,
+      padding: 10,
+      borderRadius: theme.radii.sm,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    savedText: { flex: 1, fontSize: 13, fontWeight: '700', color: theme.colors.text },
+    editChip: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: theme.radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+    },
+    editChipText: { fontSize: 12, fontWeight: '800', color: theme.colors.primary },
+    toastCard: {
+      backgroundColor: theme.colors.primarySoft,
+      borderColor: theme.colors.border,
+    },
+    toastRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+    toastText: { flex: 1, fontSize: 13, fontWeight: '700', color: theme.colors.text },
+    toastAction: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: theme.radii.pill,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+    },
+    toastActionText: { fontSize: 12, fontWeight: '800', color: theme.colors.primary },
+  });

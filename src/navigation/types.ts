@@ -1,11 +1,8 @@
 export type RootStackParamList = {
   Login: undefined;
-  Register: undefined;
   MainTabs: undefined;
   AccountDetail: { accountId: string };
-  ImportMasterData: undefined;
-  NewAccountRequest: undefined;
-  PendingRequests: undefined;
+  ImportMasterData: { mode?: 'replace' | 'add' } | undefined;
 };
 
 export type MainTabParamList = {
@@ -14,4 +11,3 @@ export type MainTabParamList = {
   Reports: undefined;
   Sync: undefined;
 };
-

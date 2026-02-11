@@ -1,21 +1,18 @@
-import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useApp } from '../app/AppProvider';
-import { theme } from '../theme';
+import { useTheme } from '../theme';
 import type { MainTabParamList, RootStackParamList } from './types';
 import { AccountsScreen } from '../screens/accounts/AccountsScreen';
 import { AppSplashScreen } from '../screens/auth/AppSplashScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
-import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { AccountDetailScreen } from '../screens/collections/AccountDetailScreen';
 import { CollectScreen } from '../screens/collections/CollectScreen';
 import { ReportsScreen } from '../screens/collections/ReportsScreen';
 import { ImportMasterDataScreen } from '../screens/sync/ImportMasterDataScreen';
-import { NewAccountRequestScreen } from '../screens/sync/NewAccountRequestScreen';
-import { PendingRequestsScreen } from '../screens/sync/PendingRequestsScreen';
 import { SyncScreen } from '../screens/sync/SyncScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -23,6 +20,7 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
+  const theme = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -58,14 +56,21 @@ function MainTabs() {
 
 export function RootNavigator() {
   const { ready, agent } = useApp();
+  const theme = useTheme();
 
   if (!ready) return <AppSplashScreen />;
 
+  const baseNavTheme = theme.isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
-    ...DefaultTheme,
+    ...baseNavTheme,
+    dark: theme.isDark,
     colors: {
-      ...DefaultTheme.colors,
+      ...baseNavTheme.colors,
       background: theme.colors.appBg,
+      card: theme.colors.surface,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      primary: theme.colors.primary,
     },
   };
 
@@ -86,27 +91,16 @@ export function RootNavigator() {
             <RootStack.Screen
               name="ImportMasterData"
               component={ImportMasterDataScreen}
-              options={{ title: 'Import Data' }}
-            />
-            <RootStack.Screen
-              name="NewAccountRequest"
-              component={NewAccountRequestScreen}
-              options={{ title: 'New Request' }}
-            />
-            <RootStack.Screen
-              name="PendingRequests"
-              component={PendingRequestsScreen}
-              options={{ title: 'Pending Requests' }}
+              options={{ title: 'Import Daily Data' }}
             />
           </>
         ) : (
           <>
             <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <RootStack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
             <RootStack.Screen
               name="ImportMasterData"
               component={ImportMasterDataScreen}
-              options={{ title: 'Import Data' }}
+              options={{ title: 'Import Daily Data' }}
             />
           </>
         )}
