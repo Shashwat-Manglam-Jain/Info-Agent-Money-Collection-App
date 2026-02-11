@@ -4,6 +4,6 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["vitest/globals"]
+    // "types": ["vitest/globals"]
   }
 }

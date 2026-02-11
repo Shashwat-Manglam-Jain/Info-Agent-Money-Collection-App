@@ -14,6 +14,7 @@ import { CollectScreen } from '../screens/collections/CollectScreen';
 import { ReportsScreen } from '../screens/collections/ReportsScreen';
 import { ImportMasterDataScreen } from '../screens/sync/ImportMasterDataScreen';
 import { SyncScreen } from '../screens/sync/SyncScreen';
+import { RegisterScreen } from './../screens/auth/RegisterScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
@@ -97,6 +98,7 @@ export function RootNavigator() {
         ) : (
           <>
             <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <RootStack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
             <RootStack.Screen
               name="ImportMasterData"
               component={ImportMasterDataScreen}

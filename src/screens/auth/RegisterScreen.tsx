@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TextInput, TouchableOpacity, Text } from 'react-native';
 import { useApp } from '../../app/AppProvider';
-import { setAgentPin } from '../../db/repo';
+// import { setAgentPin } from '../../db/repo';
 import type { RootStackParamList } from '../../navigation/types';
 
 const { height: screenHeight } = Dimensions.get('window');
@@ -30,7 +30,7 @@ export function RegisterScreen() {
     
     setBusy(true);
     try {
-      await setAgentPin({ db, societyCode: s, agentCode: a, pin });
+      // await setAgentPin({ db, societyCode: s, agentCode: a, pin });
       nav.goBack();
     } catch (e: unknown) {
       console.error('Failed to set PIN:', e);
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    padding: 10,
+    padding: 15,
     paddingTop: 0,
   },
   registerTitle: {

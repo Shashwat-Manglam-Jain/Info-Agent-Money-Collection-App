@@ -1,5 +1,6 @@
 export type RootStackParamList = {
   Login: undefined;
+  Register: undefined;
   MainTabs: undefined;
   AccountDetail: { accountId: string };
   ImportMasterData: { mode?: 'replace' | 'add' } | undefined;
