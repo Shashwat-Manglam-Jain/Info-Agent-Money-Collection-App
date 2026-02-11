@@ -21,7 +21,7 @@ export function AuthScreen({ title, subtitle, children, footer}: Props) {
   return (
     <LinearGradient colors={[theme.colors.bg, theme.colors.bg2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
       <SafeAreaView style={styles.safe}>
-        <Image source={images.logo} style={styles.watermark} resizeMode="contain" />
+        <Image source={images.uiLogo} style={styles.watermark} resizeMode="contain" />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
@@ -34,7 +34,7 @@ export function AuthScreen({ title, subtitle, children, footer}: Props) {
           >
             <View style={styles.brand}>
          
-                <Image source={images.logo} style={styles.logo} resizeMode="contain" />
+                <Image source={images.uiLogo} style={styles.logo} resizeMode="contain" />
             
               <Text style={styles.brandTitle}>Info Agent</Text>
               <Text style={styles.brandSub}>Money Collection</Text>

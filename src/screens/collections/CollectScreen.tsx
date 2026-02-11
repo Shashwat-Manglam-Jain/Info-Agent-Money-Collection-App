@@ -3,7 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { useApp } from '../../app/AppProvider';
+import { useApp } from '../../appState/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
@@ -12,6 +12,7 @@ import { LotSelector } from '../../components/LotSelector';
 import { Skeleton } from '../../components/Skeleton';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
+import { SocietySwitcherCard } from '../../components/SocietySwitcherCard';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, AccountLot, CollectionEntry } from '../../models/types';
@@ -102,6 +103,8 @@ export function CollectScreen() {
 
   return (
     <ScrollScreen>
+      <SocietySwitcherCard />
+
       <Card>
         <SectionHeader
           title="Account Type"

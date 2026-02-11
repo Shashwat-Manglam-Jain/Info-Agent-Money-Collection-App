@@ -9,6 +9,7 @@ import type {
   AccountType,
   ActiveLot,
   Agent,
+  AgentProfile,
   CollectionEntry,
   CollectionStatus,
   ExportCollectionRow,
@@ -103,11 +104,13 @@ function mapExportCollection(row: any): ExportCollectionRow {
 
 const REG_SOCIETY_KEY = 'registration.society_name';
 const REG_AGENT_KEY = 'registration.agent_name';
-const ACTIVE_LOT_KEY = 'active.lot.key';
-const ACTIVE_LOT_HEAD = 'active.lot.head';
-const ACTIVE_LOT_CODE = 'active.lot.code';
-const ACTIVE_LOT_TYPE = 'active.lot.type';
-const ACTIVE_LOT_FREQ = 'active.lot.freq';
+const ACTIVE_LOT_KEY_SUFFIX = 'key';
+const ACTIVE_LOT_HEAD_SUFFIX = 'head';
+const ACTIVE_LOT_CODE_SUFFIX = 'code';
+const ACTIVE_LOT_TYPE_SUFFIX = 'type';
+const ACTIVE_LOT_FREQ_SUFFIX = 'freq';
+
+const activeLotKey = (societyId: string, suffix: string) => `active.lot.${societyId}.${suffix}`;
 
 
 async function sha256(input: string): Promise<string> {
@@ -153,6 +156,20 @@ export async function getAgentById(db: SQLiteDatabase, agentId: string): Promise
   return row ? mapAgent(row) : null;
 }
 
+export async function listAgentProfiles(db: SQLiteDatabase): Promise<AgentProfile[]> {
+  const rows = await db.getAllAsync<any>(
+    `SELECT a.*, s.code as society_code, s.name as society_name
+     FROM agents a
+     JOIN societies s ON s.id = a.society_id
+     WHERE a.is_active = 1
+     ORDER BY s.name COLLATE NOCASE, a.code COLLATE NOCASE;`
+  );
+  return rows.map((row) => ({
+    society: { id: row.society_id, code: row.society_code, name: row.society_name },
+    agent: mapAgent(row),
+  }));
+}
+
 export async function getRegistration(db: SQLiteDatabase): Promise<{ societyName: string; agentName: string } | null> {
   const rows = await db.getAllAsync<{ key: string; value: string }>(
     'SELECT key, value FROM app_meta WHERE key IN (?, ?);',
@@ -176,55 +193,73 @@ export async function saveRegistration(
   });
 }
 
-export async function getActiveLot(db: SQLiteDatabase): Promise<ActiveLot | null> {
+export async function getActiveLot(db: SQLiteDatabase, societyId: string): Promise<ActiveLot | null> {
+  const keys = [
+    activeLotKey(societyId, ACTIVE_LOT_KEY_SUFFIX),
+    activeLotKey(societyId, ACTIVE_LOT_HEAD_SUFFIX),
+    activeLotKey(societyId, ACTIVE_LOT_CODE_SUFFIX),
+    activeLotKey(societyId, ACTIVE_LOT_TYPE_SUFFIX),
+    activeLotKey(societyId, ACTIVE_LOT_FREQ_SUFFIX),
+  ];
   const rows = await db.getAllAsync<{ key: string; value: string }>(
     'SELECT key, value FROM app_meta WHERE key IN (?, ?, ?, ?, ?);',
-    ACTIVE_LOT_KEY,
-    ACTIVE_LOT_HEAD,
-    ACTIVE_LOT_CODE,
-    ACTIVE_LOT_TYPE,
-    ACTIVE_LOT_FREQ
+    ...keys
   );
   const map = new Map(rows.map((r) => [r.key, r.value]));
-  const key = map.get(ACTIVE_LOT_KEY);
-  const accountType = map.get(ACTIVE_LOT_TYPE) as AccountType | undefined;
-  const frequency = map.get(ACTIVE_LOT_FREQ) as Frequency | undefined;
+  const key = map.get(keys[0]);
+  const accountType = map.get(keys[3]) as AccountType | undefined;
+  const frequency = map.get(keys[4]) as Frequency | undefined;
   if (!key || !accountType || !frequency) return null;
   return {
     key,
-    accountHead: map.get(ACTIVE_LOT_HEAD) ?? null,
-    accountHeadCode: map.get(ACTIVE_LOT_CODE) ?? null,
+    accountHead: map.get(keys[1]) ?? null,
+    accountHeadCode: map.get(keys[2]) ?? null,
     accountType,
     frequency,
   };
 }
 
-export async function saveActiveLot(db: SQLiteDatabase, lot: ActiveLot | null): Promise<void> {
+export async function saveActiveLot(db: SQLiteDatabase, societyId: string, lot: ActiveLot | null): Promise<void> {
   if (!lot) {
+    const keys = [
+      activeLotKey(societyId, ACTIVE_LOT_KEY_SUFFIX),
+      activeLotKey(societyId, ACTIVE_LOT_HEAD_SUFFIX),
+      activeLotKey(societyId, ACTIVE_LOT_CODE_SUFFIX),
+      activeLotKey(societyId, ACTIVE_LOT_TYPE_SUFFIX),
+      activeLotKey(societyId, ACTIVE_LOT_FREQ_SUFFIX),
+    ];
     await db.runAsync(
       'DELETE FROM app_meta WHERE key IN (?, ?, ?, ?, ?);',
-      ACTIVE_LOT_KEY,
-      ACTIVE_LOT_HEAD,
-      ACTIVE_LOT_CODE,
-      ACTIVE_LOT_TYPE,
-      ACTIVE_LOT_FREQ
+      ...keys
     );
     return;
   }
   await db.withTransactionAsync(async () => {
-    await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);', ACTIVE_LOT_KEY, lot.key);
     await db.runAsync(
       'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
-      ACTIVE_LOT_HEAD,
+      activeLotKey(societyId, ACTIVE_LOT_KEY_SUFFIX),
+      lot.key
+    );
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
+      activeLotKey(societyId, ACTIVE_LOT_HEAD_SUFFIX),
       lot.accountHead ?? ''
     );
     await db.runAsync(
       'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
-      ACTIVE_LOT_CODE,
+      activeLotKey(societyId, ACTIVE_LOT_CODE_SUFFIX),
       lot.accountHeadCode ?? ''
     );
-    await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);', ACTIVE_LOT_TYPE, lot.accountType);
-    await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);', ACTIVE_LOT_FREQ, lot.frequency);
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
+      activeLotKey(societyId, ACTIVE_LOT_TYPE_SUFFIX),
+      lot.accountType
+    );
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
+      activeLotKey(societyId, ACTIVE_LOT_FREQ_SUFFIX),
+      lot.frequency
+    );
   });
 }
 

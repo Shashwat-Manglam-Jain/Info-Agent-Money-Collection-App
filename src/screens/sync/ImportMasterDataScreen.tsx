@@ -5,7 +5,7 @@ import type { DocumentPickerAsset } from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { useApp } from '../../app/AppProvider';
+import { useApp } from '../../appState/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { LoadingModal } from '../../components/LoadingModal';
@@ -49,36 +49,6 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
     })();
   }, [db]);
 
-  const normalizeName = (value: string): string =>
-    value
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const normalizeForCompare = (value: string): string => {
-    const honorifics = new Set(['MR', 'MRS', 'MS', 'SHRI', 'SRI', 'DR', 'SMT', 'KUM', 'KUMARI']);
-    return normalizeName(value)
-      .split(' ')
-      .filter((token) => token && !honorifics.has(token))
-      .join(' ');
-  };
-
-  const looseMatch = (expected: string, actual: string): boolean => {
-    const exp = normalizeForCompare(expected);
-    const act = normalizeForCompare(actual);
-    if (!exp || !act) return false;
-    if (act.includes(exp) || exp.includes(act)) return true;
-    const expTokens = exp.split(' ');
-    const actTokens = new Set(act.split(' '));
-    if (expTokens.every((t) => actTokens.has(t))) return true;
-    if (expTokens.length === 1 && expTokens[0].length >= 3) {
-      const token = expTokens[0];
-      return act.split(' ').some((t) => t.startsWith(token));
-    }
-    return false;
-  };
-
   const isExcelAsset = (asset: DocumentPickerAsset): boolean => {
     const name = asset.name?.toLowerCase() ?? '';
     const mime = asset.mimeType?.toLowerCase() ?? '';
@@ -106,12 +76,6 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
     if (!db) return;
     setBusy(true);
     try {
-      const reg = registration ?? (await getRegistration(db));
-      if (!reg) {
-        showMessage('Register first', 'Enter society name and agent name on the login screen before importing.');
-        return;
-      }
-
       const res = await DocumentPicker.getDocumentAsync({
         type: [
           'text/plain',
@@ -131,14 +95,6 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       const report = isExcel
         ? parseAgentReportExcel(await new File(asset.uri).base64())
         : parseAgentReportText(await new File(asset.uri).text());
-
-      if (!looseMatch(reg.societyName, report.societyName) || !looseMatch(reg.agentName, report.agentName)) {
-        showMessage(
-          'Wrong file',
-          `This file does not match your registration.\n\nExpected:\n${reg.societyName}\n${reg.agentName}\n\nFound:\n${report.societyName}\n${report.agentName}\n\nPlease upload your correct TXT/Excel file.`
-        );
-        return;
-      }
 
       const firstAccount = report.accounts[0];
       const newLotKey = lotKeyFromParts(firstAccount.accountHeadCode, firstAccount.accountType, firstAccount.frequency);
@@ -217,7 +173,7 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
         <Text style={styles.registered}>
           {registration
             ? `Registered: ${registration.societyName} • ${registration.agentName}`
-            : 'Not registered yet. Please register on the Login screen first.'}
+            : 'Registration is optional. You can import without it.'}
         </Text>
       </Card>
 
@@ -236,9 +192,13 @@ Ac No      Name                                Balance
         </Text>
         <Text style={styles.schemaTitle}>Excel sample</Text>
         <Text style={styles.schema}>
-          {`Ac No     Name                          Amount
-00700034  TUKARAM BHABUTRAO GAVALI     100
-00700076  TULSHIDAS GULABCHAND SHARMA  50`}
+          {`Society Name
+Agent AC No : 100001
+Agent Name : Mr.PRAKASH VITHOBA BIRGADE
+Account Head : 7  DAILY PIGMY ACCOUNT 007
+Date : 19/01/2026
+Ac No     Name                          Installment Amount  Balance
+00707313  YASH PRUTHVIRAJ WATKAR         100                 16000`}
         </Text>
         <Text style={styles.schemaNote}>Columns auto-align in export. Import accepts extra spaces.</Text>
       </Card>

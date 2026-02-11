@@ -31,15 +31,14 @@ export async function importParsedReport(
   let societyId: string;
 
   await db.withTransactionAsync(async () => {
-    if (options.replaceExisting !== false) {
-      await db.runAsync('DELETE FROM collections;');
-      await db.runAsync('DELETE FROM exports;');
-      await db.runAsync('DELETE FROM accounts;');
-      await db.runAsync('DELETE FROM agents;');
-      await db.runAsync('DELETE FROM societies;');
+    const existingSociety = await db.getFirstAsync<any>('SELECT * FROM societies WHERE code = ?;', societyCode);
+
+    if (options.replaceExisting !== false && existingSociety) {
+      await db.runAsync('DELETE FROM collections WHERE society_id = ?;', existingSociety.id);
+      await db.runAsync('DELETE FROM exports WHERE society_id = ?;', existingSociety.id);
+      await db.runAsync('DELETE FROM accounts WHERE society_id = ?;', existingSociety.id);
     }
 
-    const existingSociety = await db.getFirstAsync<any>('SELECT * FROM societies WHERE code = ?;', societyCode);
     if (existingSociety) {
       societyId = existingSociety.id;
       await db.runAsync('UPDATE societies SET name = ? WHERE id = ?;', societyName, societyId);

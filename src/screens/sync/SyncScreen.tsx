@@ -3,10 +3,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { useApp } from '../../app/AppProvider';
+import { useApp } from '../../appState/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { PopupModal, type PopupAction } from '../../components/PopupModal';
+import { SocietySwitcherCard } from '../../components/SocietySwitcherCard';
 import { Skeleton } from '../../components/Skeleton';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
@@ -48,8 +49,6 @@ export function SyncScreen() {
       void refresh();
     }, [refresh])
   );
-
-  const societyName = useMemo(() => society?.name ?? '—', [society?.name]);
 
   const fileNameFromUri = (uri: string): string => {
     const parts = uri.split('/');
@@ -99,11 +98,7 @@ export function SyncScreen() {
 
   return (
     <ScrollScreen>
-      <Card>
-        <SectionHeader title="Society" icon="business-outline" />
-        <Text style={styles.kv}>{societyName}</Text>
-        <Text style={styles.kv}>Agent: {agent?.code ?? '—'} • {agent?.name ?? '—'}</Text>
-      </Card>
+      <SocietySwitcherCard />
 
       <Card>
         <SectionHeader title="Pending" icon="time-outline" />

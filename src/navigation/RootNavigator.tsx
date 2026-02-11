@@ -1,11 +1,10 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-
-import { useApp } from '../app/AppProvider';
+import { useApp } from '../appState/AppProvider';
 import { useTheme } from '../theme';
 import type { MainTabParamList, RootStackParamList } from './types';
+import { Icon } from '../components/Icon';
 import { AccountsScreen } from '../screens/accounts/AccountsScreen';
 import { AppSplashScreen } from '../screens/auth/AppSplashScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -33,18 +32,7 @@ function MainTabs() {
           borderTopColor: theme.colors.border,
         },
         tabBarLabelStyle: { fontWeight: '700' },
-        tabBarIcon: ({ color, size }) => {
-          type IconName = keyof typeof Ionicons.glyphMap;
-          const name: IconName =
-            route.name === 'Collect'
-              ? 'cash-outline'
-              : route.name === 'Accounts'
-                ? 'people-outline'
-                : route.name === 'Reports'
-                  ? 'stats-chart-outline'
-                  : 'sync-outline';
-          return <Ionicons name={name} size={size} color={color} />;
-        },
+        tabBarIcon: ({ size }) => <Icon name={`tab-${route.name}`} size={size} />,
       })}
     >
       <Tab.Screen name="Collect" component={CollectScreen} options={{ title: 'Collect' }} />

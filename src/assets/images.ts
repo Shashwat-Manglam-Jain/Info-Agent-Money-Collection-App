@@ -4,4 +4,5 @@ export const images = {
   adaptiveIcon: require('../../assets/adaptive-icon.png'),
   splash: require('../../assets/splash.png'),
   logo: require('../../assets/logo.png'),
+  uiLogo: require('../../assets/ui-logo.png'),
 } as const;

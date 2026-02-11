@@ -1,5 +1,5 @@
 import { PropsWithChildren, useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -17,7 +17,10 @@ export function Screen({ children }: PropsWithChildren) {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.container}>{children}</View>
+      <View style={styles.container}>
+        <View style={styles.content}>{children}</View>
+        <Text style={styles.footer}>Powered by Infopath Solutions</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -34,7 +37,10 @@ export function ScrollScreen({ children }: PropsWithChildren) {
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <ScrollView contentContainerStyle={scrollStyles.content}>{children}</ScrollView>
+      <ScrollView contentContainerStyle={scrollStyles.content}>
+        {children}
+        <Text style={scrollStyles.footer}>Powered by Infopath Solutions</Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -42,10 +48,13 @@ export function ScrollScreen({ children }: PropsWithChildren) {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.colors.appBg },
-    container: { flex: 1, padding: theme.spacing.lg, gap: 12 },
+    container: { flex: 1, padding: theme.spacing.lg },
+    content: { flex: 1, gap: 12 },
+    footer: { marginTop: theme.spacing.md, textAlign: 'center', color: theme.colors.muted, fontSize: 11 },
   });
 
 const makeScrollStyles = (theme: Theme) =>
   StyleSheet.create({
     content: { padding: theme.spacing.lg, gap: 12, backgroundColor: 'transparent' },
+    footer: { marginTop: theme.spacing.md, textAlign: 'center', color: theme.colors.muted, fontSize: 11 },
   });

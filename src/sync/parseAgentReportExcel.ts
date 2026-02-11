@@ -32,6 +32,26 @@ function cellText(value: any): string {
   return String(value ?? '').trim();
 }
 
+function normalizeHeader(value: any): string {
+  return cellText(value).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function parseNumber(value: any): number {
+  const raw = cellText(value);
+  if (!raw) return 0;
+  const num = Number(raw.replace(/,/g, ''));
+  return Number.isFinite(num) ? num : 0;
+}
+
+function parseHeadParts(value: string): { head: string; code: string | null } {
+  const cleaned = value.replace(/^Account Head:\s*/i, '').replace(/\s{2,}/g, ' ').trim();
+  const match = cleaned.match(/(.+?)\s+(\d+)$/);
+  if (match) {
+    return { head: match[1].trim(), code: match[2].trim() };
+  }
+  return { head: cleaned, code: null };
+}
+
 export function parseAgentReportExcel(base64: string, sheetName?: string): ParsedReport {
   const workbook = XLSX.read(base64, { type: 'base64' });
   const name = sheetName ?? pickSheetName(workbook);
@@ -65,24 +85,46 @@ export function parseAgentReportExcel(base64: string, sheetName?: string): Parse
       continue;
     }
 
-    const maybeDate = parseAnyDate(first);
+    const maybeDate = parseAnyDate(first) ?? parseAnyDate(cellText(row[1]));
     if (!reportDateISO && maybeDate) reportDateISO = maybeDate;
 
-    if (/^account head:/i.test(first)) {
-      const headPart = first.replace(/^Account Head:\s*/i, '').trim();
-      const headCodeMatch = headPart.match(/(.+?)\s+(\d+)$/);
-      currentHead = headCodeMatch ? headCodeMatch[1].trim() : headPart;
-      currentHeadCode = headCodeMatch ? headCodeMatch[2].trim() : null;
+    if (/^account head\s*:/i.test(first)) {
+      const headCell = cellText(row[2]) || cellText(row[1]) || first;
+      const split = headCell.split(/Agent Name:\s*/i);
+      const headPart = split[0]?.trim() ?? headCell;
+      const agentPart = split[1]?.trim() ?? '';
+      const parsedHead = parseHeadParts(headPart);
+      const codeCell = cellText(row[1]);
+      currentHead = parsedHead.head || currentHead;
+      currentHeadCode = parsedHead.code ?? (codeCell && /^\d+$/.test(codeCell) ? codeCell : null);
       currentFrequency = normalizeFrequency(currentHead);
       currentAccountType = normalizeAccountType(currentHead);
+      if (agentPart) {
+        const agentCodeMatch = agentPart.match(/(.+?)\s+(\d+)$/);
+        agentName = agentCodeMatch ? agentCodeMatch[1].trim() : agentPart;
+        agentCode = agentCodeMatch ? agentCodeMatch[2].trim() : agentCode;
+      }
       continue;
     }
 
-    if (/^agent name:/i.test(first)) {
-      const agentPart = first.replace(/^Agent Name:\s*/i, '').trim();
+    if (/^agent ac no\s*:/i.test(first)) {
+      const codeCell = cellText(row[1]);
+      agentCode = codeCell || agentCode;
+      continue;
+    }
+
+    if (/^agent name\s*:/i.test(first)) {
+      const agentCell = cellText(row[1]);
+      const agentPart = agentCell || first.replace(/^Agent Name:\s*/i, '').trim();
       const agentCodeMatch = agentPart.match(/(.+?)\s+(\d+)$/);
       agentName = agentCodeMatch ? agentCodeMatch[1].trim() : agentPart;
       agentCode = agentCodeMatch ? agentCodeMatch[2].trim() : agentCode;
+      continue;
+    }
+
+    if (/^date\s*:/i.test(first)) {
+      const maybe = parseAnyDate(cellText(row[1]) || first);
+      if (maybe) reportDateISO = maybe;
       continue;
     }
 
@@ -93,24 +135,35 @@ export function parseAgentReportExcel(base64: string, sheetName?: string): Parse
   }
 
   if (headerIndex >= 0) {
+    const headerRow = rows[headerIndex] ?? [];
+    const headers = headerRow.map(normalizeHeader);
+    const idxAccountNo = headers.findIndex((h) => h === 'ac no' || h.startsWith('ac no'));
+    const idxName = headers.findIndex((h) => h.startsWith('name'));
+    const idxInstallment = headers.findIndex((h) => h.includes('installment'));
+    const idxBalance = headers.findIndex((h) => h.includes('balance'));
+    const idxCollection = headers.findIndex((h) => h.includes('collection'));
     for (let i = headerIndex + 1; i < rows.length; i += 1) {
       const row = rows[i];
       if (!row || isRowEmpty(row)) break;
-      const first = cellText(row[0]);
+      const first = cellText(row[idxAccountNo >= 0 ? idxAccountNo : 0]);
       if (!first) continue;
       if (/total/i.test(first)) break;
 
       const accountNo = first;
-      const name = cellText(row[2] ?? row[1]);
-      const amountRaw = cellText(row[3] ?? row[2]);
+      const name = cellText(row[idxName >= 0 ? idxName : 1]);
+      const installmentRaw = cellText(row[idxInstallment >= 0 ? idxInstallment : 2]);
+      const collectionRaw = idxCollection >= 0 ? cellText(row[idxCollection]) : '';
+      const fallbackAmount = cellText(row[3] ?? row[2]);
+      const balanceRaw = cellText(row[idxBalance >= 0 ? idxBalance : 6]);
       if (!accountNo || !name) continue;
-      const amount = Number(String(amountRaw).replace(/,/g, ''));
+      const installment = parseNumber(installmentRaw) || parseNumber(collectionRaw) || parseNumber(fallbackAmount);
+      const balance = parseNumber(balanceRaw);
 
       accounts.push({
         accountNo,
         clientName: name.replace(/\s{2,}/g, ' ').trim(),
-        balanceRupees: 0,
-        installmentRupees: Number.isFinite(amount) ? amount : 0,
+        balanceRupees: balance,
+        installmentRupees: installment,
         accountType: currentAccountType,
         frequency: currentFrequency,
         accountHead: currentHead,

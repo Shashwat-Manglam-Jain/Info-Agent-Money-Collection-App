@@ -22,6 +22,11 @@ export type Agent = {
   isActive: boolean;
 };
 
+export type AgentProfile = {
+  society: Society;
+  agent: Agent;
+};
+
 export type Account = {
   id: string;
   societyId: string;
