@@ -4,6 +4,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { parseAgentReportText, type ParsedReport } from './parseAgentReport';
 import { parseAgentReportExcel } from './parseAgentReportExcel';
 import { rupeesToPaise } from '../utils/money';
+import { lotKeyFromParts } from '../utils/lots';
 
 export const DEFAULT_AGENT_PIN = '0000' as const;
 
@@ -20,6 +21,11 @@ type ImportResult = {
   accountsUpserted: number;
 };
 
+function normalizeHeadCode(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export async function importParsedReport(
   db: SQLiteDatabase,
   report: ParsedReport,
@@ -29,15 +35,10 @@ export async function importParsedReport(
   const societyName = report.societyName.trim();
 
   let societyId: string;
+  let agentId: string;
 
   await db.withTransactionAsync(async () => {
     const existingSociety = await db.getFirstAsync<any>('SELECT * FROM societies WHERE code = ?;', societyCode);
-
-    if (options.replaceExisting !== false && existingSociety) {
-      await db.runAsync('DELETE FROM collections WHERE society_id = ?;', existingSociety.id);
-      await db.runAsync('DELETE FROM exports WHERE society_id = ?;', existingSociety.id);
-      await db.runAsync('DELETE FROM accounts WHERE society_id = ?;', existingSociety.id);
-    }
 
     if (existingSociety) {
       societyId = existingSociety.id;
@@ -55,6 +56,7 @@ export async function importParsedReport(
     );
 
     if (agentRow) {
+      agentId = agentRow.id;
       await db.runAsync(
         'UPDATE agents SET name = ?, pin_hash = ?, is_active = 1 WHERE id = ?;',
         report.agentName,
@@ -62,7 +64,7 @@ export async function importParsedReport(
         agentRow.id
       );
     } else {
-      const agentId = Crypto.randomUUID();
+      agentId = Crypto.randomUUID();
       await db.runAsync(
         'INSERT INTO agents (id, society_id, code, name, phone, pin_hash, is_active) VALUES (?, ?, ?, ?, ?, ?, 1);',
         agentId,
@@ -74,28 +76,122 @@ export async function importParsedReport(
       );
     }
 
+    if (options.replaceExisting !== false) {
+      const lots = new Map<
+        string,
+        { lotKey: string; accountHeadCode: string | null; accountType: string; frequency: string }
+      >();
+      for (const account of report.accounts) {
+        const accountHeadCode = normalizeHeadCode(account.accountHeadCode);
+        const lotKey = lotKeyFromParts(accountHeadCode, account.accountType, account.frequency);
+        if (!lots.has(lotKey)) {
+          lots.set(lotKey, {
+            lotKey,
+            accountHeadCode,
+            accountType: account.accountType,
+            frequency: account.frequency,
+          });
+        }
+      }
+
+      await db.runAsync(
+        `DELETE FROM exports
+         WHERE society_id = ? AND agent_id = ?;`,
+        societyId,
+        agentId
+      );
+
+      for (const lot of lots.values()) {
+        if (lot.accountHeadCode) {
+          await db.runAsync(
+            `DELETE FROM collections
+             WHERE society_id = ? AND agent_id = ?
+               AND account_id IN (
+                 SELECT id FROM accounts
+                 WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
+                   AND account_type = ? AND frequency = ? AND account_head_code = ?
+               );`,
+            societyId,
+            agentId,
+            societyId,
+            agentId,
+            lot.lotKey,
+            lot.accountType,
+            lot.frequency,
+            lot.accountHeadCode
+          );
+          await db.runAsync(
+            `DELETE FROM accounts
+             WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
+               AND account_type = ? AND frequency = ? AND account_head_code = ?;`,
+            societyId,
+            agentId,
+            lot.lotKey,
+            lot.accountType,
+            lot.frequency,
+            lot.accountHeadCode
+          );
+        } else {
+          await db.runAsync(
+            `DELETE FROM collections
+             WHERE society_id = ? AND agent_id = ?
+               AND account_id IN (
+                 SELECT id FROM accounts
+                 WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
+                   AND account_type = ? AND frequency = ?
+                   AND (account_head_code IS NULL OR account_head_code = '')
+               );`,
+            societyId,
+            agentId,
+            societyId,
+            agentId,
+            lot.lotKey,
+            lot.accountType,
+            lot.frequency
+          );
+          await db.runAsync(
+            `DELETE FROM accounts
+             WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
+               AND account_type = ? AND frequency = ?
+               AND (account_head_code IS NULL OR account_head_code = '');`,
+            societyId,
+            agentId,
+            lot.lotKey,
+            lot.accountType,
+            lot.frequency
+          );
+        }
+      }
+    }
+
     for (const a of report.accounts) {
       const lastTxnAt = report.reportDateISO ?? null;
       const balancePaise = rupeesToPaise(a.balanceRupees ?? 0);
       const installmentPaise = rupeesToPaise(a.installmentRupees ?? 0);
+      const accountHeadCode = normalizeHeadCode(a.accountHeadCode);
+      const lotKey = lotKeyFromParts(accountHeadCode, a.accountType, a.frequency);
       const existing = await db.getFirstAsync<any>(
-        'SELECT id FROM accounts WHERE society_id = ? AND account_no = ?;',
+        `SELECT id FROM accounts
+         WHERE society_id = ? AND agent_id = ? AND account_no = ? AND account_lot_key = ?;`,
         societyId,
-        a.accountNo
+        agentId,
+        a.accountNo,
+        lotKey
       );
 
       if (existing) {
         await db.runAsync(
           `UPDATE accounts
-           SET client_name = ?, account_type = ?, frequency = ?,
+           SET client_name = ?, account_lot_key = ?, account_type = ?, frequency = ?,
                account_head = ?, account_head_code = ?,
                installment_paise = ?, balance_paise = ?, last_txn_at = ?
            WHERE id = ?;`,
           a.clientName,
+          lotKey,
           a.accountType,
           a.frequency,
           a.accountHead,
-          a.accountHeadCode,
+          accountHeadCode,
           installmentPaise,
           balancePaise,
           lastTxnAt,
@@ -104,18 +200,20 @@ export async function importParsedReport(
       } else {
         await db.runAsync(
           `INSERT INTO accounts (
-              id, society_id, account_no, client_name, account_type, frequency,
+              id, society_id, agent_id, account_no, account_lot_key, client_name, account_type, frequency,
               account_head, account_head_code,
               installment_paise, balance_paise, last_txn_at, opened_at, closes_at, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');`,
           Crypto.randomUUID(),
           societyId,
+          agentId,
           a.accountNo,
+          lotKey,
           a.clientName,
           a.accountType,
           a.frequency,
           a.accountHead,
-          a.accountHeadCode,
+          accountHeadCode,
           installmentPaise,
           balancePaise,
           lastTxnAt,

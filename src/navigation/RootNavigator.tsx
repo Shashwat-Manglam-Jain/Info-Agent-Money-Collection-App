@@ -5,19 +5,21 @@ import { useApp } from '../appState/AppProvider';
 import { useTheme } from '../theme';
 import type { MainTabParamList, RootStackParamList } from './types';
 import { Icon } from '../components/Icon';
-import { AccountsScreen } from '../screens/accounts/AccountsScreen';
 import { AppSplashScreen } from '../screens/auth/AppSplashScreen';
-import { LoginScreen } from '../screens/auth/LoginScreen';
-import { AccountDetailScreen } from '../screens/collections/AccountDetailScreen';
-import { CollectScreen } from '../screens/collections/CollectScreen';
-import { ReportsScreen } from '../screens/collections/ReportsScreen';
-import { ImportMasterDataScreen } from '../screens/sync/ImportMasterDataScreen';
-import { SyncScreen } from '../screens/sync/SyncScreen';
-import { RegisterScreen } from './../screens/auth/RegisterScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+const getCollectScreen = () => require('../screens/collections/CollectScreen').CollectScreen;
+const getAccountsScreen = () => require('../screens/accounts/AccountsScreen').AccountsScreen;
+const getReportsScreen = () => require('../screens/collections/ReportsScreen').ReportsScreen;
+const getSyncScreen = () => require('../screens/sync/SyncScreen').SyncScreen;
+
+const getLoginScreen = () => require('../screens/auth/LoginScreen').LoginScreen;
+const getRegisterScreen = () => require('../screens/auth/RegisterScreen').RegisterScreen;
+const getAccountDetailScreen = () => require('../screens/collections/AccountDetailScreen').AccountDetailScreen;
+const getImportMasterDataScreen = () => require('../screens/sync/ImportMasterDataScreen').ImportMasterDataScreen;
 
 function MainTabs() {
   const theme = useTheme();
@@ -32,13 +34,15 @@ function MainTabs() {
           borderTopColor: theme.colors.border,
         },
         tabBarLabelStyle: { fontWeight: '700' },
-        tabBarIcon: ({ size }) => <Icon name={`tab-${route.name}`} size={size} />,
+        tabBarIcon: ({ size, color, focused }) => (
+          <Icon name={`tab-${route.name}${focused ? '-active' : ''}`} size={size} color={color} />
+        ),
       })}
     >
-      <Tab.Screen name="Collect" component={CollectScreen} options={{ title: 'Collect' }} />
-      <Tab.Screen name="Accounts" component={AccountsScreen} options={{ title: 'Clients' }} />
-      <Tab.Screen name="Reports" component={ReportsScreen} options={{ title: 'Reports' }} />
-      <Tab.Screen name="Sync" component={SyncScreen} options={{ title: 'Sync' }} />
+      <Tab.Screen name="Collect" getComponent={getCollectScreen} options={{ title: 'Collect' }} />
+      <Tab.Screen name="Accounts" getComponent={getAccountsScreen} options={{ title: 'Clients' }} />
+      <Tab.Screen name="Reports" getComponent={getReportsScreen} options={{ title: 'Reports' }} />
+      <Tab.Screen name="Sync" getComponent={getSyncScreen} options={{ title: 'Sync' }} />
     </Tab.Navigator>
   );
 }
@@ -76,20 +80,20 @@ export function RootNavigator() {
         {agent ? (
           <>
             <RootStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-            <RootStack.Screen name="AccountDetail" component={AccountDetailScreen} options={{ title: 'Account' }} />
+            <RootStack.Screen name="AccountDetail" getComponent={getAccountDetailScreen} options={{ title: 'Account' }} />
             <RootStack.Screen
               name="ImportMasterData"
-              component={ImportMasterDataScreen}
+              getComponent={getImportMasterDataScreen}
               options={{ title: 'Import Daily Data' }}
             />
           </>
         ) : (
           <>
-            <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <RootStack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+            <RootStack.Screen name="Login" getComponent={getLoginScreen} options={{ headerShown: false }} />
+            <RootStack.Screen name="Register" getComponent={getRegisterScreen} options={{ headerShown: false }} />
             <RootStack.Screen
               name="ImportMasterData"
-              component={ImportMasterDataScreen}
+              getComponent={getImportMasterDataScreen}
               options={{ title: 'Import Daily Data' }}
             />
           </>

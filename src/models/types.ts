@@ -30,7 +30,9 @@ export type AgentProfile = {
 export type Account = {
   id: string;
   societyId: string;
+  agentId: string;
   accountNo: string;
+  lotKey: string;
   clientName: string;
   accountType: AccountType;
   frequency: Frequency;

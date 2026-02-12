@@ -39,7 +39,9 @@ function mapAccount(row: any): Account {
   return {
     id: row.id,
     societyId: row.society_id,
+    agentId: row.agent_id,
     accountNo: row.account_no,
+    lotKey: row.account_lot_key,
     clientName: row.client_name,
     accountType: row.account_type as AccountType,
     frequency: row.frequency as Frequency,
@@ -111,6 +113,10 @@ const ACTIVE_LOT_TYPE_SUFFIX = 'type';
 const ACTIVE_LOT_FREQ_SUFFIX = 'freq';
 
 const activeLotKey = (societyId: string, suffix: string) => `active.lot.${societyId}.${suffix}`;
+const normalizeLotCode = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+};
 
 
 async function sha256(input: string): Promise<string> {
@@ -153,6 +159,19 @@ export async function getSocietyByCode(db: SQLiteDatabase, code: string): Promis
 
 export async function getAgentById(db: SQLiteDatabase, agentId: string): Promise<Agent | null> {
   const row = await db.getFirstAsync<any>('SELECT * FROM agents WHERE id = ?;', agentId);
+  return row ? mapAgent(row) : null;
+}
+
+export async function getAgentBySocietyAndCode(
+  db: SQLiteDatabase,
+  societyId: string,
+  agentCode: string
+): Promise<Agent | null> {
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM agents WHERE society_id = ? AND code = ?;',
+    societyId,
+    agentCode
+  );
   return row ? mapAgent(row) : null;
 }
 
@@ -263,14 +282,26 @@ export async function saveActiveLot(db: SQLiteDatabase, societyId: string, lot: 
   });
 }
 
-export async function getAccountById(db: SQLiteDatabase, accountId: string): Promise<Account | null> {
-  const row = await db.getFirstAsync<any>('SELECT * FROM accounts WHERE id = ?;', accountId);
+export async function getAccountById(params: {
+  db: SQLiteDatabase;
+  accountId: string;
+  societyId: string;
+  agentId: string;
+}): Promise<Account | null> {
+  const row = await params.db.getFirstAsync<any>(
+    `SELECT * FROM accounts
+     WHERE id = ? AND society_id = ? AND agent_id = ?;`,
+    params.accountId,
+    params.societyId,
+    params.agentId
+  );
   return row ? mapAccount(row) : null;
 }
 
 export async function searchAccountsByLastDigits(
   db: SQLiteDatabase,
   societyId: string,
+  agentId: string,
   digits: string
 ): Promise<Account[]> {
   const q = digits.trim();
@@ -279,11 +310,13 @@ export async function searchAccountsByLastDigits(
   const rows = await db.getAllAsync<any>(
     `SELECT * FROM accounts
      WHERE society_id = ?
+       AND agent_id = ?
        AND status = 'ACTIVE'
        AND account_no LIKE '%' || ?
      ORDER BY account_no ASC
      LIMIT 50;`,
     societyId,
+    agentId,
     q
   );
   return rows.map(mapAccount);
@@ -292,27 +325,31 @@ export async function searchAccountsByLastDigits(
 export async function listAccounts(
   db: SQLiteDatabase,
   societyId: string,
+  agentId: string,
   limit: number = 2000
 ): Promise<Account[]> {
   const rows = await db.getAllAsync<any>(
     `SELECT * FROM accounts
      WHERE society_id = ?
+       AND agent_id = ?
      ORDER BY client_name ASC
      LIMIT ?;`,
     societyId,
+    agentId,
     limit
   );
   return rows.map(mapAccount);
 }
 
-export async function listAccountLots(db: SQLiteDatabase, societyId: string): Promise<AccountLot[]> {
+export async function listAccountLots(db: SQLiteDatabase, societyId: string, agentId: string): Promise<AccountLot[]> {
   const rows = await db.getAllAsync<any>(
     `SELECT account_head, account_head_code, account_type, frequency, COUNT(*) as count
      FROM accounts
-     WHERE society_id = ?
+     WHERE society_id = ? AND agent_id = ?
      GROUP BY account_head, account_head_code, account_type, frequency
      ORDER BY count DESC;`,
-    societyId
+    societyId,
+    agentId
   );
   return rows.map((row: any) => {
     const accountType = row.account_type as AccountType;
@@ -330,10 +367,11 @@ export async function listAccountLots(db: SQLiteDatabase, societyId: string): Pr
   });
 }
 
-export async function getAccountCount(db: SQLiteDatabase, societyId: string): Promise<number> {
+export async function getAccountCount(db: SQLiteDatabase, societyId: string, agentId: string): Promise<number> {
   const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM accounts WHERE society_id = ?;`,
-    societyId
+    `SELECT COUNT(*) as count FROM accounts WHERE society_id = ? AND agent_id = ?;`,
+    societyId,
+    agentId
   );
   return row?.count ?? 0;
 }
@@ -341,16 +379,18 @@ export async function getAccountCount(db: SQLiteDatabase, societyId: string): Pr
 export async function getAccountCountByLot(
   db: SQLiteDatabase,
   societyId: string,
+  agentId: string,
   lot: ActiveLot
 ): Promise<number> {
-  const headCode = lot.accountHeadCode?.trim() ? lot.accountHeadCode.trim() : null;
+  const headCode = normalizeLotCode(lot.accountHeadCode);
   if (headCode) {
     const row = await db.getFirstAsync<{ count: number }>(
       `SELECT COUNT(*) as count
        FROM accounts
-       WHERE society_id = ? AND account_head_code = ?
+       WHERE society_id = ? AND agent_id = ? AND account_head_code = ?
          AND account_type = ? AND frequency = ?;`,
       societyId,
+      agentId,
       headCode,
       lot.accountType,
       lot.frequency
@@ -360,9 +400,10 @@ export async function getAccountCountByLot(
   const row = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) as count
      FROM accounts
-     WHERE society_id = ? AND (account_head_code IS NULL OR account_head_code = '')
+     WHERE society_id = ? AND agent_id = ? AND (account_head_code IS NULL OR account_head_code = '')
        AND account_type = ? AND frequency = ?;`,
     societyId,
+    agentId,
     lot.accountType,
     lot.frequency
   );
@@ -383,7 +424,8 @@ export async function upsertCollectionForToday(params: {
 
   const existing = await db.getFirstAsync<any>(
     `SELECT * FROM collections
-     WHERE agent_id = ? AND account_id = ? AND collection_date = ?;`,
+     WHERE society_id = ? AND agent_id = ? AND account_id = ? AND collection_date = ?;`,
+    societyId,
     agentId,
     account.id,
     collectionDate
@@ -425,13 +467,15 @@ export async function upsertCollectionForToday(params: {
 
 export async function listCollectionsForDate(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   collectionDate: string;
 }): Promise<CollectionEntry[]> {
   const rows = await params.db.getAllAsync<any>(
     `SELECT * FROM collections
-     WHERE agent_id = ? AND collection_date = ?
+     WHERE society_id = ? AND agent_id = ? AND collection_date = ?
      ORDER BY collected_at DESC;`,
+    params.societyId,
     params.agentId,
     params.collectionDate
   );
@@ -440,19 +484,21 @@ export async function listCollectionsForDate(params: {
 
 export async function listCollectionsForDateByLot(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   collectionDate: string;
   lot: ActiveLot;
 }): Promise<CollectionEntry[]> {
-  const headCode = params.lot.accountHeadCode?.trim() ? params.lot.accountHeadCode.trim() : null;
+  const headCode = normalizeLotCode(params.lot.accountHeadCode);
   if (headCode) {
     const rows = await params.db.getAllAsync<any>(
       `SELECT c.*
        FROM collections c
        JOIN accounts a ON a.id = c.account_id
-       WHERE c.agent_id = ? AND c.collection_date = ? AND a.account_head_code = ?
+       WHERE c.society_id = ? AND c.agent_id = ? AND c.collection_date = ? AND a.account_head_code = ?
          AND a.account_type = ? AND a.frequency = ?
        ORDER BY c.collected_at DESC;`,
+      params.societyId,
       params.agentId,
       params.collectionDate,
       headCode,
@@ -465,10 +511,11 @@ export async function listCollectionsForDateByLot(params: {
     `SELECT c.*
      FROM collections c
      JOIN accounts a ON a.id = c.account_id
-     WHERE c.agent_id = ? AND c.collection_date = ?
+     WHERE c.society_id = ? AND c.agent_id = ? AND c.collection_date = ?
        AND (a.account_head_code IS NULL OR a.account_head_code = '')
        AND a.account_type = ? AND a.frequency = ?
      ORDER BY c.collected_at DESC;`,
+    params.societyId,
     params.agentId,
     params.collectionDate,
     params.lot.accountType,
@@ -479,13 +526,15 @@ export async function listCollectionsForDateByLot(params: {
 
 export async function listCollectionDates(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
 }): Promise<string[]> {
   const rows = await params.db.getAllAsync<{ collection_date: string }>(
     `SELECT DISTINCT collection_date
      FROM collections
-     WHERE agent_id = ?
+     WHERE society_id = ? AND agent_id = ?
      ORDER BY collection_date DESC;`,
+    params.societyId,
     params.agentId
   );
   return rows.map((r) => r.collection_date);
@@ -493,13 +542,15 @@ export async function listCollectionDates(params: {
 
 export async function getCollectionForAccountDate(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   accountId: string;
   collectionDate: string;
 }): Promise<CollectionEntry | null> {
   const row = await params.db.getFirstAsync<any>(
     `SELECT * FROM collections
-     WHERE agent_id = ? AND account_id = ? AND collection_date = ?;`,
+     WHERE society_id = ? AND agent_id = ? AND account_id = ? AND collection_date = ?;`,
+    params.societyId,
     params.agentId,
     params.accountId,
     params.collectionDate
@@ -509,13 +560,15 @@ export async function getCollectionForAccountDate(params: {
 
 export async function getCollectionTotalsForDate(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   collectionDate: string;
 }): Promise<{ count: number; totalPaise: number }> {
   const row = await params.db.getFirstAsync<{ count: number; totalPaise: number }>(
     `SELECT COUNT(*) as count, COALESCE(SUM(collected_paise), 0) as totalPaise
      FROM collections
-     WHERE agent_id = ? AND collection_date = ?;`,
+     WHERE society_id = ? AND agent_id = ? AND collection_date = ?;`,
+    params.societyId,
     params.agentId,
     params.collectionDate
   );
@@ -524,18 +577,20 @@ export async function getCollectionTotalsForDate(params: {
 
 export async function getCollectionTotalsForDateByLot(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   collectionDate: string;
   lot: ActiveLot;
 }): Promise<{ count: number; totalPaise: number }> {
-  const headCode = params.lot.accountHeadCode?.trim() ? params.lot.accountHeadCode.trim() : null;
+  const headCode = normalizeLotCode(params.lot.accountHeadCode);
   if (headCode) {
     const row = await params.db.getFirstAsync<{ count: number; totalPaise: number }>(
       `SELECT COUNT(*) as count, COALESCE(SUM(c.collected_paise), 0) as totalPaise
        FROM collections c
        JOIN accounts a ON a.id = c.account_id
-       WHERE c.agent_id = ? AND c.collection_date = ? AND a.account_head_code = ?
+       WHERE c.society_id = ? AND c.agent_id = ? AND c.collection_date = ? AND a.account_head_code = ?
          AND a.account_type = ? AND a.frequency = ?;`,
+      params.societyId,
       params.agentId,
       params.collectionDate,
       headCode,
@@ -548,9 +603,10 @@ export async function getCollectionTotalsForDateByLot(params: {
     `SELECT COUNT(*) as count, COALESCE(SUM(c.collected_paise), 0) as totalPaise
      FROM collections c
      JOIN accounts a ON a.id = c.account_id
-     WHERE c.agent_id = ? AND c.collection_date = ?
+     WHERE c.society_id = ? AND c.agent_id = ? AND c.collection_date = ?
        AND (a.account_head_code IS NULL OR a.account_head_code = '')
        AND a.account_type = ? AND a.frequency = ?;`,
+    params.societyId,
     params.agentId,
     params.collectionDate,
     params.lot.accountType,
@@ -561,10 +617,14 @@ export async function getCollectionTotalsForDateByLot(params: {
 
 export async function getPendingExportCounts(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
 }): Promise<{ collections: number }> {
   const c = await params.db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM collections WHERE agent_id = ? AND status = 'PENDING';`,
+    `SELECT COUNT(*) as count
+     FROM collections
+     WHERE society_id = ? AND agent_id = ? AND status = 'PENDING';`,
+    params.societyId,
     params.agentId
   );
   return { collections: c?.count ?? 0 };
@@ -572,14 +632,17 @@ export async function getPendingExportCounts(params: {
 
 export async function listExportsForDate(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   dateISO: string;
 }): Promise<ExportRecord[]> {
   const rows = await params.db.getAllAsync<any>(
     `SELECT * FROM exports
-     WHERE agent_id = ?
+     WHERE society_id = ?
+       AND agent_id = ?
        AND substr(exported_at, 1, 10) = ?
      ORDER BY exported_at DESC;`,
+    params.societyId,
     params.agentId,
     params.dateISO
   );
@@ -588,14 +651,16 @@ export async function listExportsForDate(params: {
 
 export async function listPendingCollections(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
 }): Promise<ExportCollectionRow[]> {
   const rows = await params.db.getAllAsync<any>(
     `SELECT c.*, a.client_name, a.account_head, a.account_head_code, a.account_type, a.frequency
      FROM collections c
      JOIN accounts a ON a.id = c.account_id
-     WHERE c.agent_id = ? AND c.status = 'PENDING'
+     WHERE c.society_id = ? AND c.agent_id = ? AND c.status = 'PENDING'
      ORDER BY c.collected_at ASC;`,
+    params.societyId,
     params.agentId
   );
   return rows.map(mapExportCollection);
@@ -603,6 +668,7 @@ export async function listPendingCollections(params: {
 
 export async function markExported(params: {
   db: SQLiteDatabase;
+  societyId: string;
   agentId: string;
   exportedAt: string;
   fileUri: string | null;
@@ -611,16 +677,20 @@ export async function markExported(params: {
   await params.db.withTransactionAsync(async () => {
     for (const id of params.collectionsIds) {
       await params.db.runAsync(
-        `UPDATE collections SET status = 'EXPORTED', exported_at = ? WHERE id = ?;`,
+        `UPDATE collections
+         SET status = 'EXPORTED', exported_at = ?
+         WHERE id = ? AND society_id = ? AND agent_id = ?;`,
         params.exportedAt,
-        id
+        id,
+        params.societyId,
+        params.agentId
       );
     }
     await params.db.runAsync(
       `INSERT INTO exports (id, society_id, agent_id, exported_at, file_uri, collections_count)
-       VALUES (?, (SELECT society_id FROM agents WHERE id = ?), ?, ?, ?, ?);`,
+       VALUES (?, ?, ?, ?, ?, ?);`,
       Crypto.randomUUID(),
-      params.agentId,
+      params.societyId,
       params.agentId,
       params.exportedAt,
       params.fileUri,
@@ -650,28 +720,43 @@ export async function clearClientData(db: SQLiteDatabase): Promise<void> {
 export async function clearClientDataByLots(
   db: SQLiteDatabase,
   societyId: string,
+  agentId: string,
   lots: Array<{ accountHeadCode: string | null; accountType: AccountType; frequency: Frequency }>
 ): Promise<void> {
   if (lots.length === 0) return;
+  const uniqueLots = new Map<string, { accountHeadCode: string | null; accountType: AccountType; frequency: Frequency }>();
+  for (const lot of lots) {
+    const code = normalizeLotCode(lot.accountHeadCode);
+    const key = `${code ?? ''}|${lot.accountType}|${lot.frequency}`;
+    if (!uniqueLots.has(key)) {
+      uniqueLots.set(key, { ...lot, accountHeadCode: code });
+    }
+  }
+
   await db.withTransactionAsync(async () => {
-    for (const lot of lots) {
-      const code = lot.accountHeadCode?.trim();
+    for (const lot of uniqueLots.values()) {
+      const code = normalizeLotCode(lot.accountHeadCode);
       if (code) {
         await db.runAsync(
           `DELETE FROM collections
-           WHERE account_id IN (
+           WHERE society_id = ? AND agent_id = ?
+             AND account_id IN (
              SELECT id FROM accounts
-             WHERE society_id = ? AND account_type = ? AND frequency = ? AND account_head_code = ?
+             WHERE society_id = ? AND agent_id = ? AND account_type = ? AND frequency = ? AND account_head_code = ?
            );`,
           societyId,
+          agentId,
+          societyId,
+          agentId,
           lot.accountType,
           lot.frequency,
           code
         );
         await db.runAsync(
           `DELETE FROM accounts
-           WHERE society_id = ? AND account_type = ? AND frequency = ? AND account_head_code = ?;`,
+           WHERE society_id = ? AND agent_id = ? AND account_type = ? AND frequency = ? AND account_head_code = ?;`,
           societyId,
+          agentId,
           lot.accountType,
           lot.frequency,
           code
@@ -679,20 +764,25 @@ export async function clearClientDataByLots(
       } else {
         await db.runAsync(
           `DELETE FROM collections
-           WHERE account_id IN (
+           WHERE society_id = ? AND agent_id = ?
+             AND account_id IN (
              SELECT id FROM accounts
-             WHERE society_id = ? AND account_type = ? AND frequency = ?
+             WHERE society_id = ? AND agent_id = ? AND account_type = ? AND frequency = ?
                AND (account_head_code IS NULL OR account_head_code = '')
            );`,
           societyId,
+          agentId,
+          societyId,
+          agentId,
           lot.accountType,
           lot.frequency
         );
         await db.runAsync(
           `DELETE FROM accounts
-           WHERE society_id = ? AND account_type = ? AND frequency = ?
+           WHERE society_id = ? AND agent_id = ? AND account_type = ? AND frequency = ?
              AND (account_head_code IS NULL OR account_head_code = '');`,
           societyId,
+          agentId,
           lot.accountType,
           lot.frequency
         );

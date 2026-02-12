@@ -12,7 +12,7 @@ import { LoadingModal } from '../../components/LoadingModal';
 import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
-import { getRegistration, getSocietyByCode, listAccountLots } from '../../db/repo';
+import { getAgentBySocietyAndCode, getRegistration, getSocietyByCode, listAccountLots } from '../../db/repo';
 import type { RootStackParamList } from '../../navigation/types';
 import { DEFAULT_AGENT_PIN, importParsedReport } from '../../sync/importAgentReport';
 import { parseAgentReportExcel } from '../../sync/parseAgentReportExcel';
@@ -108,13 +108,16 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       if (mode === 'add') {
         const existingSociety = await getSocietyByCode(db, report.societyCode);
         if (existingSociety) {
-          const lots = await listAccountLots(db, existingSociety.id);
-          if (lots.find((lot) => lot.key === newLotKey)) {
-            showMessage(
-              'Account type already loaded',
-              `This account type is already loaded: ${newLotLabel}\n\nPlease select a different file (Daily/Monthly/Loan).`
-            );
-            return;
+          const existingAgent = await getAgentBySocietyAndCode(db, existingSociety.id, report.agentCode);
+          if (existingAgent) {
+            const lots = await listAccountLots(db, existingSociety.id, existingAgent.id);
+            if (lots.find((lot) => lot.key === newLotKey)) {
+              showMessage(
+                'Account type already loaded',
+                `This account type is already loaded: ${newLotLabel}\n\nPlease select a different file (Daily/Monthly/Loan).`
+              );
+              return;
+            }
           }
         }
       }

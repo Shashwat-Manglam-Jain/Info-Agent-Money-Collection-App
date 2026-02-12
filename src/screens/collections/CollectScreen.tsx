@@ -55,16 +55,28 @@ export function CollectScreen() {
     try {
       const [entries, totals, accountCount, lotRows] = activeLot
         ? await Promise.all([
-            listCollectionsForDateByLot({ db, agentId: agent.id, collectionDate: today, lot: activeLot }),
-            getCollectionTotalsForDateByLot({ db, agentId: agent.id, collectionDate: today, lot: activeLot }),
-            getAccountCountByLot(db, society.id, activeLot),
-            listAccountLots(db, society.id),
+            listCollectionsForDateByLot({
+              db,
+              societyId: society.id,
+              agentId: agent.id,
+              collectionDate: today,
+              lot: activeLot,
+            }),
+            getCollectionTotalsForDateByLot({
+              db,
+              societyId: society.id,
+              agentId: agent.id,
+              collectionDate: today,
+              lot: activeLot,
+            }),
+            getAccountCountByLot(db, society.id, agent.id, activeLot),
+            listAccountLots(db, society.id, agent.id),
           ])
         : await Promise.all([
-            listCollectionsForDate({ db, agentId: agent.id, collectionDate: today }),
-            getCollectionTotalsForDate({ db, agentId: agent.id, collectionDate: today }),
-            getAccountCount(db, society.id),
-            listAccountLots(db, society.id),
+            listCollectionsForDate({ db, societyId: society.id, agentId: agent.id, collectionDate: today }),
+            getCollectionTotalsForDate({ db, societyId: society.id, agentId: agent.id, collectionDate: today }),
+            getAccountCount(db, society.id, agent.id),
+            listAccountLots(db, society.id, agent.id),
           ]);
       setTodayEntries(entries);
       setTodayTotal(totals.totalPaise);
@@ -88,16 +100,18 @@ export function CollectScreen() {
   );
 
   const doSearch = useCallback(async () => {
-    if (!db || !society) return;
+    if (!db || !society || !agent) return;
     setSearchedDigits(digits);
-    const r = await searchAccountsByLastDigits(db, society.id, digits);
+    const r = await searchAccountsByLastDigits(db, society.id, agent.id, digits);
     setResults(r);
-  }, [db, digits, society]);
+  }, [agent, db, digits, society]);
 
   const filteredResults = useMemo(() => {
     if (!activeLot) return results;
     return results.filter((a) => lotKeyFromParts(a.accountHeadCode, a.accountType, a.frequency) === activeLot.key);
   }, [activeLot, results]);
+
+  const collectionProgress = totalAccounts > 0 ? Math.min(todayCount / totalAccounts, 1) : 0;
 
   const openAccount = (accountId: string) => nav.navigate('AccountDetail', { accountId });
 
@@ -185,18 +199,37 @@ export function CollectScreen() {
         <View style={{ height: 10 }} />
         {loading ? (
           <View style={{ gap: 10 }}>
-            <Skeleton height={12} width="55%" />
-            <Skeleton height={12} width="45%" />
-            <Skeleton height={12} width="60%" />
-            <View style={{ height: 6 }} />
+            <View style={styles.statsGrid}>
+              <Skeleton height={72} width="31%" />
+              <Skeleton height={72} width="31%" />
+              <Skeleton height={72} width="31%" />
+            </View>
+            <Skeleton height={8} width="100%" />
             <Skeleton height={42} width="100%" />
             <Skeleton height={42} width="100%" />
           </View>
         ) : (
           <>
-            <Text style={styles.kv}>Collected: {todayCount} / {totalAccounts}</Text>
-            <Text style={styles.kv}>Remaining clients: {remainingCount}</Text>
-            <Text style={styles.kv}>Total collected: {formatINR(todayTotal)}</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.statTile}>
+                <Text style={styles.statValue}>{todayCount}</Text>
+                <Text style={styles.statLabel}>Collected</Text>
+              </View>
+              <View style={styles.statTile}>
+                <Text style={styles.statValue}>{remainingCount}</Text>
+                <Text style={styles.statLabel}>Remaining</Text>
+              </View>
+              <View style={styles.statTile}>
+                <Text style={styles.statValue}>{formatINR(todayTotal)}</Text>
+                <Text style={styles.statLabel}>Amount</Text>
+              </View>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${Math.round(collectionProgress * 100)}%` }]} />
+            </View>
+            <Text style={styles.kv}>
+              {Math.round(collectionProgress * 100)}% complete • {todayCount} / {totalAccounts} clients
+            </Text>
             <View style={{ height: 10 }} />
             {todayEntries.length === 0 ? (
               <EmptyState icon="receipt-outline" title="No collections yet" message="Start with Quick Collect above." />
@@ -239,5 +272,47 @@ const makeStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.surfaceTint,
+    },
+    statsGrid: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    statTile: {
+      flex: 1,
+      minHeight: 72,
+      borderRadius: theme.radii.sm,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+      justifyContent: 'center',
+      gap: 3,
+    },
+    statValue: {
+      fontSize: 14,
+      fontWeight: '900',
+      color: theme.colors.text,
+    },
+    statLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    progressTrack: {
+      marginTop: 10,
+      height: 8,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.surfaceTint,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.primary,
     },
   });

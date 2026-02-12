@@ -1,16 +1,20 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useApp } from '../appState/AppProvider';
 import { listAgentProfiles } from '../db/repo';
 import { useTheme } from '../theme';
 import type { Theme } from '../theme';
+import type { RootStackParamList } from '../navigation/types';
 import { Card } from './Card';
 import { Icon } from './Icon';
 import { PopupModal, type PopupAction } from './PopupModal';
 import { SectionHeader } from './SectionHeader';
 
 export function SocietySwitcherCard() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent, switchProfile } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -36,7 +40,7 @@ export function SocietySwitcherCard() {
   const openSwitcher = useCallback(async () => {
     if (!db || !society || !agent) return;
     const profiles = await listAgentProfiles(db);
-    const options = profiles.filter((p) => p.agent.id !== agent.id);
+    const options = profiles.filter((p) => !(p.agent.id === agent.id && p.society.id === society.id));
     if (options.length === 0) {
       setPopup({
         title: 'No other societies',
@@ -64,10 +68,20 @@ export function SocietySwitcherCard() {
         title="Society"
         icon="business-outline"
         right={(
-          <Pressable onPress={openSwitcher} style={styles.switchButton} accessibilityLabel="Change society">
-            <Icon name="swap-horizontal-outline" size={16} color={theme.colors.primary} />
-            <Text style={styles.switchText}>Change</Text>
-          </Pressable>
+          <View style={styles.actionsRow}>
+            <Pressable
+              onPress={() => nav.navigate('ImportMasterData', { mode: 'replace' })}
+              style={styles.switchButton}
+              accessibilityLabel="Add society"
+            >
+              <Icon name="add-outline" size={16} color={theme.colors.primary} />
+              <Text style={styles.switchText}>Add</Text>
+            </Pressable>
+            <Pressable onPress={openSwitcher} style={styles.switchButton} accessibilityLabel="Change society">
+              <Icon name="swap-horizontal-outline" size={16} color={theme.colors.primary} />
+              <Text style={styles.switchText}>Change</Text>
+            </Pressable>
+          </View>
         )}
       />
       <Text style={styles.kv}>{society?.name ?? '—'} ({society?.code ?? '—'})</Text>
@@ -87,6 +101,11 @@ export function SocietySwitcherCard() {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     kv: { marginTop: 6, fontSize: 14, color: theme.colors.text },
+    actionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     switchButton: {
       flexDirection: 'row',
       alignItems: 'center',

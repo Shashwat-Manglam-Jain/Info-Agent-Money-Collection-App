@@ -90,21 +90,29 @@ function fileNameFromUri(uri: string | null): string {
   return parts[parts.length - 1] || uri;
 }
 
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function parseExportFileName(name: string): {
+  societyCode: string | null;
+  agentCode: string | null;
   dateISO: string | null;
   timeISO: string | null;
   lotCode: string | null;
   extension: string | null;
 } {
-  const match = name.match(/IAMC_[^_]+_[^_]+_([^_]+)_(\d{8})_(\d{6})Z\.(json|xlsx|xls|txt)$/i);
-  if (!match) return { dateISO: null, timeISO: null, lotCode: null, extension: null };
-  const [, lotCode, datePart, timePart, extension] = match;
+  const match = name.match(/IAMC_([^_]+)_([^_]+)_(.+)_(\d{8})_(\d{6})Z\.(json|xlsx|xls|txt)$/i);
+  if (!match) {
+    return { societyCode: null, agentCode: null, dateISO: null, timeISO: null, lotCode: null, extension: null };
+  }
+  const [, societyCode, agentCode, lotCode, datePart, timePart, extension] = match;
   const yyyy = datePart.slice(0, 4);
   const mm = datePart.slice(4, 6);
   const dd = datePart.slice(6, 8);
   const dateISO = `${yyyy}-${mm}-${dd}`;
   const timeISO = `${timePart.slice(0, 2)}:${timePart.slice(2, 4)}:${timePart.slice(4, 6)}`;
-  return { dateISO, timeISO, lotCode, extension };
+  return { societyCode, agentCode, dateISO, timeISO, lotCode, extension };
 }
 
 function buildTitle(dateISO: string | null, timeISO: string | null, lotCode: string | null): string {
@@ -256,7 +264,7 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
 }
 
 export function ReportsScreen() {
-  const { db, agent } = useApp();
+  const { db, society, agent } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const today = useMemo(() => {
@@ -360,35 +368,51 @@ export function ReportsScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        if (!db || !agent) return;
-        const exports = await listExportsForDate({ db, agentId: agent.id, dateISO: selectedDate });
+        if (!db || !agent || !society) return;
+        const exports = await listExportsForDate({ db, societyId: society.id, agentId: agent.id, dateISO: selectedDate });
 
         let files: DeviceFile[] = [];
         try {
           exportDir.create({ intermediates: true, idempotent: true });
           const items = exportDir.list();
-          const jsonFiles = items.filter((item) => item instanceof File) as File[];
+          const exportFiles = items.filter((item) => item instanceof File) as File[];
 
-          files = await Promise.all(
-            jsonFiles.map(async (file) => {
+          const resolved = await Promise.all(
+            exportFiles.map(async (file): Promise<DeviceFile | null> => {
               const name = fileNameFromUri(file.uri);
               const meta = parseExportFileName(name);
+              const matchesByName =
+                meta.societyCode?.toUpperCase() === society.code.toUpperCase() &&
+                meta.agentCode === agent.code;
+              const hasStructuredName = !!meta.societyCode && !!meta.agentCode;
               let dateISO = meta.dateISO;
               let exportedAtISO: string | null = null;
               let collectionsCount: number | null = null;
               let lotCode: string | null = meta.lotCode;
+              let matchesByContent = false;
 
-              if (!dateISO || !lotCode) {
+              // If the file name already has society+agent and it does not match current context,
+              // skip expensive file parsing.
+              if (hasStructuredName && !matchesByName) {
+                return null;
+              }
+
+              if (!matchesByName || !dateISO || !lotCode) {
                 try {
                   const view = await parseExportFile(file.uri, name);
                   exportedAtISO = view.exportedAt ?? null;
                   dateISO = exportedAtISO ? exportedAtISO.slice(0, 10) : dateISO;
                   collectionsCount = view.collections.length;
                   if (view.lotLabel) lotCode = view.lotLabel;
+                  matchesByContent =
+                    view.agentCode === agent.code &&
+                    normalizeText(view.societyName) === normalizeText(society.name);
                 } catch {
                   // ignore parse errors
                 }
               }
+
+              if (!matchesByName && !matchesByContent) return null;
 
               return {
                 uri: file.uri,
@@ -400,6 +424,7 @@ export function ReportsScreen() {
               };
             })
           );
+          files = resolved.filter((file): file is DeviceFile => !!file);
 
           files.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
         } catch {
@@ -415,7 +440,7 @@ export function ReportsScreen() {
         }
         setDataDates(dates);
       })();
-    }, [agent, db, exportDir, selectedDate])
+    }, [agent, db, exportDir, selectedDate, society])
   );
 
   const historyItems = useMemo(() => {

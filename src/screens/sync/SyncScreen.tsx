@@ -34,8 +34,8 @@ export function SyncScreen() {
     setLoading(true);
     try {
       const [pending, count] = await Promise.all([
-        getPendingExportCounts({ db, agentId: agent.id }),
-        getAccountCount(db, society.id),
+        getPendingExportCounts({ db, societyId: society.id, agentId: agent.id }),
+        getAccountCount(db, society.id, agent.id),
       ]);
       setPendingCollections(pending.collections);
       setAccountCount(count);
@@ -73,12 +73,15 @@ export function SyncScreen() {
       await clearClientDataByLots(
         db,
         society.id,
+        agent.id,
         result.files.map((file) => file.lot)
       );
 
       const filesInfo = result.files
         .map((f) => `${f.lotCode ? `Lot ${f.lotCode}` : f.lotName}: ${fileNameFromUri(f.fileUri)}`)
         .join('\n');
+
+      await refresh();
 
       setPopup({
         title: 'Exported',

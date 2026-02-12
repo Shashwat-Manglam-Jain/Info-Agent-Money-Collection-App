@@ -8,6 +8,7 @@ import { nowISO } from '../utils/dates';
 import { paiseToRupees } from '../utils/money';
 import { listPendingCollections, markExported } from '../db/repo';
 import { lotKeyFromParts } from '../utils/lots';
+import { validatePendingCollectionsForExport } from './exportValidation';
 
 export type ExportFormat = 'xlsx' | 'txt';
 
@@ -26,8 +27,13 @@ export type ExportFileResult = {
 
 function compactNowForFilename(iso: string): string {
   // 2026-02-08T18:51:12.345Z -> 20260208_185112Z
-  const safe = iso.replace(/[:.]/g, '').replace('T', '_');
-  return safe.slice(0, 15) + 'Z';
+  const date = iso.slice(0, 10).replace(/-/g, '');
+  const time = iso.slice(11, 19).replace(/:/g, '');
+  if (date.length === 8 && time.length === 6) {
+    return `${date}_${time}Z`;
+  }
+  const fallback = iso.replace(/[^0-9]/g, '');
+  return `${fallback.slice(0, 8)}_${fallback.slice(8, 14)}Z`;
 }
 
 function sanitizeSegment(value: string): string {
@@ -152,9 +158,14 @@ export async function exportPendingAndShare(params: {
   format?: ExportFormat;
 }): Promise<{ files: ExportFileResult[]; shared: boolean } | null> {
   const exportedAt = nowISO();
-  const collections = await listPendingCollections({ db: params.db, agentId: params.agent.id });
+  const collections = await listPendingCollections({
+    db: params.db,
+    societyId: params.society.id,
+    agentId: params.agent.id,
+  });
 
   if (collections.length === 0) return null;
+  validatePendingCollectionsForExport(collections);
 
   const format: ExportFormat = params.format ?? 'xlsx';
   const exportDir = new Directory(Paths.document, 'exports');
@@ -214,6 +225,7 @@ export async function exportPendingAndShare(params: {
 
     await markExported({
       db: params.db,
+      societyId: params.society.id,
       agentId: params.agent.id,
       exportedAt,
       fileUri: file.uri,

@@ -7,6 +7,7 @@ import { Card } from '../../components/Card';
 import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
+import { Skeleton } from '../../components/Skeleton';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, CollectionEntry } from '../../models/types';
@@ -29,6 +30,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [account, setAccount] = useState<Account | null>(null);
+  const [loadingAccount, setLoadingAccount] = useState(true);
   const [todayEntry, setTodayEntry] = useState<CollectionEntry | null>(null);
   const [amountText, setAmountText] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -40,17 +42,41 @@ export function AccountDetailScreen({ route, navigation }: Props) {
   const today = useMemo(() => toISODate(new Date()), []);
 
   const load = useCallback(async () => {
-    if (!db || !agent) return;
-    const a = await getAccountById(db, accountId);
-    setAccount(a);
-    if (a) {
+    if (!db || !agent || !society) {
+      setAccount(null);
+      setTodayEntry(null);
+      setLoadingAccount(false);
+      return;
+    }
+    setLoadingAccount(true);
+    try {
+      const a = await getAccountById({
+        db,
+        accountId,
+        societyId: society.id,
+        agentId: agent.id,
+      });
+      setAccount(a);
+      if (!a) {
+        setTodayEntry(null);
+        setRemarks('');
+        return;
+      }
       navigation.setOptions({ title: a.accountNo });
       setAmountText((prev) => (prev ? prev : a.installmentPaise > 0 ? paiseToRupeesText(a.installmentPaise) : ''));
-      const e = await getCollectionForAccountDate({ db, agentId: agent.id, accountId: a.id, collectionDate: today });
+      const e = await getCollectionForAccountDate({
+        db,
+        societyId: society.id,
+        agentId: agent.id,
+        accountId: a.id,
+        collectionDate: today,
+      });
       setTodayEntry(e);
       setRemarks(e?.remarks ?? '');
+    } finally {
+      setLoadingAccount(false);
     }
-  }, [accountId, agent, db, navigation, today]);
+  }, [accountId, agent, db, navigation, society, today]);
 
   useEffect(() => {
     void load();
@@ -121,6 +147,30 @@ export function AccountDetailScreen({ route, navigation }: Props) {
       setSaving(false);
     }
   };
+
+  if (loadingAccount) {
+    return (
+      <ScrollScreen>
+        <Card>
+          <View style={{ gap: 10 }}>
+            <Skeleton height={20} width="65%" />
+            <Skeleton height={14} width="42%" />
+            <Skeleton height={14} width="78%" />
+            <Skeleton height={14} width="70%" />
+            <Skeleton height={14} width="62%" />
+          </View>
+        </Card>
+        <Card>
+          <View style={{ gap: 10 }}>
+            <Skeleton height={16} width="52%" />
+            <Skeleton height={42} width="100%" />
+            <Skeleton height={42} width="100%" />
+            <Skeleton height={44} width="100%" />
+          </View>
+        </Card>
+      </ScrollScreen>
+    );
+  }
 
   if (!account) {
     return (

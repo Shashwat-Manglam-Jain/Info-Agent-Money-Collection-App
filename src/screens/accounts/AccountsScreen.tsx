@@ -36,9 +36,9 @@ export function AccountsScreen() {
         setLoading(true);
         try {
           const [rows, collected, lotRows] = await Promise.all([
-            listAccounts(db, society.id, 2000),
-            listCollectionsForDate({ db, agentId: agent.id, collectionDate: today }),
-            listAccountLots(db, society.id),
+            listAccounts(db, society.id, agent.id, 2000),
+            listCollectionsForDate({ db, societyId: society.id, agentId: agent.id, collectionDate: today }),
+            listAccountLots(db, society.id, agent.id),
           ]);
           setAccounts(rows);
           setCollectedIds(new Set(collected.map((c) => c.accountId)));

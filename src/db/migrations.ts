@@ -1,4 +1,16 @@
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
+
+export const PERFORMANCE_INDEXES_SQL = `
+CREATE INDEX IF NOT EXISTS idx_accounts_society_agent_accountno ON accounts(society_id, agent_id, account_no);
+CREATE INDEX IF NOT EXISTS idx_accounts_society_agent_clientname ON accounts(society_id, agent_id, client_name);
+CREATE INDEX IF NOT EXISTS idx_accounts_society_agent_lot ON accounts(society_id, agent_id, account_lot_key);
+CREATE INDEX IF NOT EXISTS idx_collections_agent_date ON collections(agent_id, collection_date);
+CREATE INDEX IF NOT EXISTS idx_collections_status ON collections(status);
+CREATE INDEX IF NOT EXISTS idx_collections_society_agent_date ON collections(society_id, agent_id, collection_date);
+CREATE INDEX IF NOT EXISTS idx_collections_society_agent_status ON collections(society_id, agent_id, status);
+CREATE INDEX IF NOT EXISTS idx_exports_agent_time ON exports(agent_id, exported_at);
+CREATE INDEX IF NOT EXISTS idx_exports_society_agent_time ON exports(society_id, agent_id, exported_at);
+`;
 
 export const MIGRATION_001 = `
 PRAGMA foreign_keys = OFF;
@@ -36,7 +48,9 @@ CREATE TABLE IF NOT EXISTS agents (
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY NOT NULL,
   society_id TEXT NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   account_no TEXT NOT NULL,
+  account_lot_key TEXT NOT NULL,
   client_name TEXT NOT NULL,
   account_type TEXT NOT NULL,
   frequency TEXT NOT NULL,
@@ -48,10 +62,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   opened_at TEXT,
   closes_at TEXT,
   status TEXT NOT NULL DEFAULT 'ACTIVE',
-  UNIQUE (society_id, account_no)
+  UNIQUE (society_id, agent_id, account_no, account_lot_key)
 );
-CREATE INDEX IF NOT EXISTS idx_accounts_society_accountno ON accounts(society_id, account_no);
-CREATE INDEX IF NOT EXISTS idx_accounts_society_clientname ON accounts(society_id, client_name);
 
 CREATE TABLE IF NOT EXISTS collections (
   id TEXT PRIMARY KEY NOT NULL,
@@ -69,8 +81,6 @@ CREATE TABLE IF NOT EXISTS collections (
   longitude REAL,
   UNIQUE (agent_id, account_id, collection_date)
 );
-CREATE INDEX IF NOT EXISTS idx_collections_agent_date ON collections(agent_id, collection_date);
-CREATE INDEX IF NOT EXISTS idx_collections_status ON collections(status);
 
 CREATE TABLE IF NOT EXISTS exports (
   id TEXT PRIMARY KEY NOT NULL,
@@ -80,7 +90,7 @@ CREATE TABLE IF NOT EXISTS exports (
   file_uri TEXT,
   collections_count INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_exports_agent_time ON exports(agent_id, exported_at);
+${PERFORMANCE_INDEXES_SQL}
 
 PRAGMA foreign_keys = ON;
 `;
