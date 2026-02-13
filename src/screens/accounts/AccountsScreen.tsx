@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useApp } from '../../appState/AppProvider';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
+import { Icon } from '../../components/Icon';
 import { Skeleton } from '../../components/Skeleton';
 import { Screen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
@@ -100,23 +101,52 @@ export function AccountsScreen() {
             onPress={() => setFilter('ALL')}
             style={[styles.filterChip, filter === 'ALL' && styles.filterChipActive]}
           >
-            <Text style={[styles.filterText, filter === 'ALL' && styles.filterTextActive]}>All ({baseAccounts.length})</Text>
+            <View style={styles.filterChipContent}>
+              {filter === 'ALL' ? <Icon name="checkmark-circle" size={14} color={theme.colors.textOnDark} /> : null}
+              <Text style={[styles.filterText, filter === 'ALL' && styles.filterTextActive]}>All ({baseAccounts.length})</Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => setFilter('COLLECTED')}
-            style={[styles.filterChip, filter === 'COLLECTED' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              styles.filterChipCollected,
+              filter === 'COLLECTED' && styles.filterChipCollectedActive,
+            ]}
           >
-            <Text style={[styles.filterText, filter === 'COLLECTED' && styles.filterTextActive]}>
-              Collected ({collectedCount})
-            </Text>
+            <View style={styles.filterChipContent}>
+              {filter === 'COLLECTED' ? <Icon name="checkmark-circle" size={14} color={theme.colors.textOnDark} /> : null}
+              <Text
+                style={[
+                  styles.filterText,
+                  styles.filterTextCollected,
+                  filter === 'COLLECTED' && styles.filterTextCollectedActive,
+                ]}
+              >
+                Collected ({collectedCount})
+              </Text>
+            </View>
           </Pressable>
           <Pressable
             onPress={() => setFilter('REMAINING')}
-            style={[styles.filterChip, filter === 'REMAINING' && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              styles.filterChipRemaining,
+              filter === 'REMAINING' && styles.filterChipRemainingActive,
+            ]}
           >
-            <Text style={[styles.filterText, filter === 'REMAINING' && styles.filterTextActive]}>
-              Remaining ({remainingCount})
-            </Text>
+            <View style={styles.filterChipContent}>
+              {filter === 'REMAINING' ? <Icon name="checkmark-circle" size={14} color={theme.colors.textOnDark} /> : null}
+              <Text
+                style={[
+                  styles.filterText,
+                  styles.filterTextRemaining,
+                  filter === 'REMAINING' && styles.filterTextRemainingActive,
+                ]}
+              >
+                Remaining ({remainingCount})
+              </Text>
+            </View>
           </Pressable>
         </View>
       </Card>
@@ -153,9 +183,21 @@ export function AccountsScreen() {
             ItemSeparatorComponent={() => <View style={styles.sep} />}
             renderItem={({ item }) => (
               <Pressable onPress={() => nav.navigate('AccountDetail', { accountId: item.id })} style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{item.clientName}</Text>
-                  <Text style={styles.rowSub}>{item.accountNo}</Text>
+                <View style={styles.rowCard}>
+                  <View style={styles.clientRow}>
+                    <Icon name="client" size={16} color={theme.colors.primary} />
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {item.clientName}
+                    </Text>
+                  </View>
+                  <View style={styles.rowInfoLine}>
+                    <Text style={styles.rowSub}>A/c: {item.accountNo}</Text>
+                    <View style={[styles.statusChip, collectedIds.has(item.id) ? styles.statusChipDone : styles.statusChipPending]}>
+                      <Text style={[styles.statusText, collectedIds.has(item.id) ? styles.statusTextDone : styles.statusTextPending]}>
+                        {collectedIds.has(item.id) ? 'Collected' : 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
                   <Text style={styles.rowMeta}>
                     {(item.accountHead ?? item.accountType)} • {item.frequency} • Balance {formatINR(item.balancePaise)}
                   </Text>
@@ -171,24 +213,82 @@ export function AccountsScreen() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    row: { paddingVertical: 10 },
-    rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
-    rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },
-    rowMeta: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
-    sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border },
+    row: {
+      paddingVertical: 2,
+    },
+    rowCard: {
+      minHeight: 94,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      justifyContent: 'center',
+    },
+    clientRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7 },
+    rowInfoLine: { marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    rowTitle: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '900', color: theme.colors.text },
+    rowSub: { flex: 1, minWidth: 0, fontSize: 12, color: theme.colors.muted, fontWeight: '700' },
+    rowMeta: { fontSize: 12, color: theme.colors.muted, marginTop: 6, lineHeight: 17 },
+    statusChip: {
+      minWidth: 86,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radii.pill,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statusChipDone: {
+      backgroundColor: theme.isDark ? 'rgba(22,163,74,0.2)' : 'rgba(22,163,74,0.14)',
+      borderColor: theme.colors.success,
+    },
+    statusChipPending: {
+      backgroundColor: theme.isDark ? 'rgba(249,133,133,0.24)' : 'rgba(220,38,38,0.14)',
+      borderColor: theme.colors.danger,
+    },
+    statusText: { fontSize: 11, fontWeight: '800' },
+    statusTextDone: { color: theme.colors.success },
+    statusTextPending: { color: theme.colors.danger },
+    sep: { height: 8 },
     filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     filterChip: {
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: theme.radii.pill,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
     },
+    filterChipContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     filterChipActive: {
-      backgroundColor: theme.colors.primarySoft,
-      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+      borderWidth: 2,
     },
-    filterText: { fontSize: 12, fontWeight: '700', color: theme.colors.muted },
-    filterTextActive: { color: theme.colors.primary },
+    filterChipCollected: {
+      backgroundColor: theme.isDark ? 'rgba(22,163,74,0.12)' : 'rgba(22,163,74,0.08)',
+      borderColor: theme.colors.success,
+    },
+    filterChipCollectedActive: {
+      backgroundColor: theme.colors.success,
+      borderColor: theme.colors.success,
+      borderWidth: 2,
+    },
+    filterChipRemaining: {
+      backgroundColor: theme.isDark ? 'rgba(249,133,133,0.14)' : 'rgba(220,38,38,0.08)',
+      borderColor: theme.colors.danger,
+    },
+    filterChipRemainingActive: {
+      backgroundColor: theme.colors.danger,
+      borderColor: theme.colors.danger,
+      borderWidth: 2,
+    },
+    filterText: { fontSize: 12, fontWeight: '700', color: theme.colors.muted, letterSpacing: 0.1 },
+    filterTextActive: { color: theme.colors.textOnDark, fontWeight: '800' },
+    filterTextCollected: { color: theme.colors.success },
+    filterTextCollectedActive: { color: theme.colors.textOnDark, fontWeight: '800' },
+    filterTextRemaining: { color: theme.colors.danger, fontWeight: '800' },
+    filterTextRemainingActive: { color: theme.colors.textOnDark, fontWeight: '800' },
   });

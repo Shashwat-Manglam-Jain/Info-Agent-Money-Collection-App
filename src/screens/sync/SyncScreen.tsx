@@ -12,11 +12,19 @@ import { Skeleton } from '../../components/Skeleton';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
 import { clearClientDataByLots, getAccountCount, getPendingExportCounts } from '../../db/repo';
-import type { RootStackParamList } from '../../navigation/types';
-import { exportPendingAndShare, type ExportFormat } from '../../sync/exportPending';
+import type { ImportCategory, RootStackParamList } from '../../navigation/types';
+import { exportPendingAndShare, type ExportCategory, type ExportFormat } from '../../sync/exportPending';
 import { getErrorMessage } from '../../utils/errors';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
+
+const exportCategories: ExportCategory[] = ['daily', 'monthly', 'loan'];
+
+function categoryLabel(category: ExportCategory | ImportCategory): string {
+  if (category === 'daily') return 'Daily';
+  if (category === 'monthly') return 'Monthly';
+  return 'Loan';
+}
 
 export function SyncScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -24,8 +32,11 @@ export function SyncScreen() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [pendingCollections, setPendingCollections] = useState(0);
+  const [pendingDaily, setPendingDaily] = useState(0);
+  const [pendingMonthly, setPendingMonthly] = useState(0);
+  const [pendingLoan, setPendingLoan] = useState(0);
   const [accountCount, setAccountCount] = useState(0);
-  const [exporting, setExporting] = useState(false);
+  const [exportingCategory, setExportingCategory] = useState<ExportCategory | null>(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
 
@@ -38,6 +49,9 @@ export function SyncScreen() {
         getAccountCount(db, society.id, agent.id),
       ]);
       setPendingCollections(pending.collections);
+      setPendingDaily(pending.daily);
+      setPendingMonthly(pending.monthly);
+      setPendingLoan(pending.loan);
       setAccountCount(count);
     } finally {
       setLoading(false);
@@ -57,15 +71,21 @@ export function SyncScreen() {
 
   const closePopup = () => setPopup(null);
 
-  const doExport = async (format: ExportFormat) => {
+  const pendingCountFor = (category: ExportCategory): number => {
+    if (category === 'daily') return pendingDaily;
+    if (category === 'monthly') return pendingMonthly;
+    return pendingLoan;
+  };
+
+  const doExport = async (format: ExportFormat, category: ExportCategory) => {
     if (!db || !society || !agent) return;
-    setExporting(true);
+    setExportingCategory(category);
     try {
-      const result = await exportPendingAndShare({ db, society, agent, format });
+      const result = await exportPendingAndShare({ db, society, agent, format, category });
       if (!result) {
         setPopup({
           title: 'Nothing to export',
-          message: 'No pending collections.',
+          message: `No pending ${categoryLabel(category)} collections.`,
           actions: [{ label: 'OK', onPress: closePopup }],
         });
         return;
@@ -84,7 +104,7 @@ export function SyncScreen() {
       await refresh();
 
       setPopup({
-        title: 'Exported',
+        title: `${categoryLabel(category)} Exported`,
         message: `Files: ${result.files.length}\n${filesInfo}\n\nClient data cleared for exported account types.`,
         actions: [{ label: 'OK', onPress: closePopup }],
       });
@@ -95,8 +115,51 @@ export function SyncScreen() {
         actions: [{ label: 'OK', onPress: closePopup }],
       });
     } finally {
-      setExporting(false);
+      setExportingCategory(null);
     }
+  };
+
+  const openExportPopup = (category: ExportCategory) => {
+    if (!db || !society || !agent) return;
+    const count = pendingCountFor(category);
+    if (count === 0) {
+      setPopup({
+        title: 'Nothing to export',
+        message: `No pending ${categoryLabel(category)} collections.`,
+        actions: [{ label: 'OK', onPress: closePopup }],
+      });
+      return;
+    }
+    setPopup({
+      title: `${categoryLabel(category)} Export Format`,
+      message: `Choose format for ${categoryLabel(category)} export (${count} collections).`,
+      actions: [
+        { label: 'Cancel', variant: 'ghost', onPress: closePopup },
+        {
+          label: 'Excel (default)',
+          onPress: () => {
+            closePopup();
+            void doExport('xlsx', category);
+          },
+        },
+        {
+          label: 'Text (TXT)',
+          variant: 'secondary',
+          onPress: () => {
+            closePopup();
+            void doExport('txt', category);
+          },
+        },
+        {
+          label: 'PDF',
+          variant: 'secondary',
+          onPress: () => {
+            closePopup();
+            void doExport('pdf', category);
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -110,38 +173,90 @@ export function SyncScreen() {
           <View style={{ gap: 8 }}>
             <Skeleton height={12} width="55%" />
             <Skeleton height={12} width="45%" />
+            <Skeleton height={12} width="50%" />
+            <Skeleton height={12} width="40%" />
+            <Skeleton height={12} width="45%" />
           </View>
         ) : (
-          <>
-            <Text style={styles.kv}>Collections: {pendingCollections}</Text>
-            <Text style={styles.kv}>Clients loaded: {accountCount}</Text>
-          </>
+          <View style={styles.pendingGrid}>
+            <View style={styles.pendingTile}>
+              <Text style={styles.pendingValue}>{pendingCollections}</Text>
+              <Text style={styles.pendingLabel}>Collections</Text>
+            </View>
+            <View style={styles.pendingTile}>
+              <Text style={styles.pendingValue}>{pendingDaily}</Text>
+              <Text style={styles.pendingLabel}>Daily</Text>
+            </View>
+            <View style={styles.pendingTile}>
+              <Text style={styles.pendingValue}>{pendingMonthly}</Text>
+              <Text style={styles.pendingLabel}>Monthly</Text>
+            </View>
+            <View style={styles.pendingTile}>
+              <Text style={styles.pendingValue}>{pendingLoan}</Text>
+              <Text style={styles.pendingLabel}>Loan</Text>
+            </View>
+            <View style={styles.pendingTileWide}>
+              <Text style={styles.pendingValue}>{accountCount}</Text>
+              <Text style={styles.pendingLabel}>Clients Loaded</Text>
+            </View>
+          </View>
         )}
-        <View style={{ height: 12 }} />
-        <Button
-          title={exporting ? 'Exporting…' : 'Export & Clear Data'}
-          variant="secondary"
-          disabled={exporting || loading}
-          iconLeft="share-outline"
-          onPress={() => {
-            if (!db || !society || !agent) return;
-            setPopup({
-              title: 'Export format',
-              message: 'Each account type will be exported as a separate lot. Choose the file format.',
-              actions: [
-                { label: 'Cancel', variant: 'ghost', onPress: closePopup },
-                { label: 'Excel (default)', onPress: () => { closePopup(); void doExport('xlsx'); } },
-                { label: 'Text (TXT)', variant: 'secondary', onPress: () => { closePopup(); void doExport('txt'); } },
-              ],
-            });
-          }}
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Export Separately"
+          subtitle="Export Daily, Monthly, and Loan files separately."
+          icon="share-outline"
         />
         <View style={{ height: 10 }} />
-        <Button
-          title="Import Daily Data (TXT/Excel)"
-          iconLeft="cloud-download-outline"
-          onPress={() => nav.navigate('ImportMasterData')}
+        {exportCategories.map((category) => (
+          <View key={category} style={styles.rowGap}>
+            <Button
+              title={
+                exportingCategory === category
+                  ? 'Exporting…'
+                  : `Export ${categoryLabel(category)} (${pendingCountFor(category)})`
+              }
+              variant="secondary"
+              disabled={loading || !!exportingCategory || pendingCountFor(category) === 0}
+              iconLeft="share-outline"
+              onPress={() => openExportPopup(category)}
+            />
+          </View>
+        ))}
+      </Card>
+
+      <Card>
+        <SectionHeader
+          title="Import Separately"
+          subtitle="Choose the exact file type to avoid confusion."
+          icon="cloud-download-outline"
         />
+        <View style={{ height: 10 }} />
+        <View style={styles.rowGap}>
+          <Button
+            title="Import Daily File (TXT/Excel)"
+            iconLeft="cloud-download-outline"
+            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'daily' })}
+          />
+        </View>
+        <View style={styles.rowGap}>
+          <Button
+            title="Import Monthly File (TXT/Excel)"
+            variant="secondary"
+            iconLeft="cloud-download-outline"
+            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'monthly' })}
+          />
+        </View>
+        <View style={styles.rowGap}>
+          <Button
+            title="Import Loan File (TXT/Excel)"
+            variant="secondary"
+            iconLeft="cloud-download-outline"
+            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'loan' })}
+          />
+        </View>
       </Card>
 
       <Card>
@@ -170,5 +285,42 @@ export function SyncScreen() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    kv: { marginTop: 6, fontSize: 14, color: theme.colors.text },
+    pendingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    pendingTile: {
+      width: '48%',
+      minHeight: 76,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      justifyContent: 'center',
+      gap: 3,
+    },
+    pendingTileWide: {
+      width: '100%',
+      minHeight: 76,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      justifyContent: 'center',
+      gap: 3,
+    },
+    pendingValue: {
+      fontSize: 16,
+      fontWeight: '900',
+      color: theme.colors.text,
+    },
+    pendingLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.muted,
+      letterSpacing: 0.35,
+      textTransform: 'uppercase',
+    },
+    rowGap: { marginTop: 10 },
   });

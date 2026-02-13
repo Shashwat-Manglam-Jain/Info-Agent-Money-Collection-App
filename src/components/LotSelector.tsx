@@ -61,14 +61,14 @@ const makeStyles = (theme: Theme) =>
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: theme.radii.pill,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
     },
     chipActive: {
       backgroundColor: theme.colors.primarySoft,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.primary,
     },
-    text: { fontSize: 12, fontWeight: '700', color: theme.colors.muted },
-    textActive: { color: theme.colors.primary },
+    text: { fontSize: 12, fontWeight: '700', color: theme.colors.muted, letterSpacing: 0.1 },
+    textActive: { color: theme.colors.primary, fontWeight: '800' },
   });

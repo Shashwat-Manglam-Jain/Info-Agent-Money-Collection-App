@@ -180,9 +180,15 @@ export function CollectScreen() {
               renderItem={({ item }) => (
                 <Pressable onPress={() => openAccount(item.id)} style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.rowTitle}>
-                      {item.accountNo} • {item.clientName}
-                    </Text>
+                    <View style={styles.matchTop}>
+                      <View style={styles.clientLine}>
+                        <Icon name="client" size={15} color={theme.colors.primary} />
+                        <Text style={styles.rowTitle} numberOfLines={1}>
+                          {item.clientName}
+                        </Text>
+                      </View>
+                      <Text style={styles.accountChip}>{item.accountNo}</Text>
+                    </View>
                     <Text style={styles.rowSub}>
                       {(item.accountHead ?? item.accountType)} • {item.frequency} • Balance {formatINR(item.balancePaise)}
                     </Text>
@@ -258,16 +264,33 @@ export function CollectScreen() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    row: { paddingVertical: 10 },
-    rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
-    rowSub: { fontSize: 13, color: theme.colors.muted, marginTop: 2 },
-    sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border },
-    kv: { marginTop: 4, fontSize: 13, color: theme.colors.text },
+    row: {
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+      borderRadius: theme.radii.sm,
+    },
+    matchTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+    clientLine: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    accountChip: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: theme.colors.primary,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radii.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    rowTitle: { fontSize: 15, fontWeight: '900', color: theme.colors.text },
+    rowSub: { fontSize: 12, color: theme.colors.muted, marginTop: 3, lineHeight: 17 },
+    sep: { height: 1, backgroundColor: theme.colors.border },
+    kv: { marginTop: 6, fontSize: 13, color: theme.colors.text, fontWeight: '600' },
     addButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      borderWidth: StyleSheet.hairlineWidth,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       alignItems: 'center',
       justifyContent: 'center',
@@ -279,18 +302,18 @@ const makeStyles = (theme: Theme) =>
     },
     statTile: {
       flex: 1,
-      minHeight: 72,
-      borderRadius: theme.radii.sm,
-      borderWidth: StyleSheet.hairlineWidth,
+      minHeight: 78,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
-      paddingHorizontal: 10,
-      paddingVertical: 9,
+      paddingHorizontal: 11,
+      paddingVertical: 10,
       justifyContent: 'center',
-      gap: 3,
+      gap: 4,
     },
     statValue: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: '900',
       color: theme.colors.text,
     },
@@ -306,7 +329,7 @@ const makeStyles = (theme: Theme) =>
       height: 8,
       borderRadius: theme.radii.pill,
       backgroundColor: theme.colors.surfaceTint,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       overflow: 'hidden',
     },

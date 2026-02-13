@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { DocumentPickerAsset } from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -13,16 +13,52 @@ import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
 import { getAgentBySocietyAndCode, getRegistration, getSocietyByCode, listAccountLots } from '../../db/repo';
-import type { RootStackParamList } from '../../navigation/types';
+import type { ImportCategory, RootStackParamList } from '../../navigation/types';
 import { DEFAULT_AGENT_PIN, importParsedReport } from '../../sync/importAgentReport';
 import { parseAgentReportExcel } from '../../sync/parseAgentReportExcel';
-import { parseAgentReportText } from '../../sync/parseAgentReport';
+import { parseAgentReportText, type ParsedAccount } from '../../sync/parseAgentReport';
 import { getErrorMessage } from '../../utils/errors';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
 import { lotKeyFromParts, lotLabel } from '../../utils/lots';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImportMasterData'>;
+
+const TXT_SAMPLE = `Society Name                         Date :- 19-01-2026
+Agent Wise Client Account Report
+Account Head:DAILY PIGMY ACCOUNT  007 Agent Name:Mr.GOURAV ... 00100005
+----------------------------------------------------------------------
+Ac No      Name                                Balance
+----------------------------------------------------------------------
+00700034   TUKARAM BHABUTRAO GAVALI             100.00
+00700076   TULSHIDAS GULABCHAND SHARMA           50.00`;
+
+const EXCEL_SAMPLE = `Society Name
+Agent AC No : 100001
+Agent Name : Mr.PRAKASH VITHOBA BIRGADE
+Account Head : 7  DAILY PIGMY ACCOUNT 007
+Date : 19/01/2026
+Ac No     Name                          Installment Amount  Balance
+00707313  YASH PRUTHVIRAJ WATKAR         100                 16000`;
+
+function categoryLabel(category: ImportCategory): string {
+  if (category === 'daily') return 'Daily';
+  if (category === 'monthly') return 'Monthly';
+  return 'Loan';
+}
+
+function detectCategory(account: ParsedAccount): ImportCategory | null {
+  if (account.accountType === 'LOAN') return 'loan';
+  if (account.frequency === 'DAILY') return 'daily';
+  if (account.frequency === 'MONTHLY') return 'monthly';
+  return null;
+}
+
+function matchesCategory(account: ParsedAccount, category: ImportCategory): boolean {
+  if (category === 'loan') return account.accountType === 'LOAN';
+  if (category === 'daily') return account.accountType !== 'LOAN' && account.frequency === 'DAILY';
+  return account.accountType !== 'LOAN' && account.frequency === 'MONTHLY';
+}
 
 export function ImportMasterDataScreen({ navigation, route }: Props) {
   const { db, signIn, agent, setActiveLot } = useApp();
@@ -33,13 +69,21 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
   const [registration, setRegistration] = useState<{ societyName: string; agentName: string } | null>(null);
   const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
   const mode = route.params?.mode ?? 'replace';
+  const category = route.params?.category;
   const isAddMode = mode === 'add';
+  const categoryText = category ? categoryLabel(category) : 'Account';
 
   useEffect(() => {
     if (!pendingNavigation || !agent) return;
     setPendingNavigation(false);
     navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
   }, [agent, navigation, pendingNavigation]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: category ? `Import ${categoryText} Data` : 'Import Account Data',
+    });
+  }, [category, categoryText, navigation]);
 
   useEffect(() => {
     if (!db) return;
@@ -97,6 +141,16 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
         : parseAgentReportText(await new File(asset.uri).text());
 
       const firstAccount = report.accounts[0];
+      if (category && !matchesCategory(firstAccount, category)) {
+        const detected = detectCategory(firstAccount);
+        const detectedText = detected ? categoryLabel(detected) : 'a different';
+        showMessage(
+          'Wrong file selected',
+          `This screen is for ${categoryText} data, but the selected file looks like ${detectedText} account data.\n\nPlease choose the correct file.`
+        );
+        return;
+      }
+
       const newLotKey = lotKeyFromParts(firstAccount.accountHeadCode, firstAccount.accountType, firstAccount.frequency);
       const newLotLabel = lotLabel({
         accountHead: firstAccount.accountHead,
@@ -165,11 +219,13 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
     <ScrollScreen>
       <Card>
         <SectionHeader
-          title={isAddMode ? 'Add Account Type (TXT or Excel)' : 'Import Daily Data (TXT or Excel)'}
+          title={isAddMode ? `Add ${categoryText} Data (TXT or Excel)` : `Import ${categoryText} Data (TXT or Excel)`}
           subtitle={
             isAddMode
-              ? 'Add a new account type (Daily/Monthly/Loan). Existing data stays. PIN is set to 0000.'
-              : 'Import the daily agent report file shared by your admin. This replaces old data. PIN is set to 0000.'
+              ? `Add a new ${categoryText.toLowerCase()} file. Existing data stays. PIN is set to 0000.`
+              : category
+                ? `Import only ${categoryText.toLowerCase()} file data. Existing matching data is replaced. PIN is set to 0000.`
+                : 'Import agent report data shared by your admin. Existing matching data is replaced. PIN is set to 0000.'
           }
           icon="cloud-download-outline"
         />
@@ -181,35 +237,53 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       </Card>
 
       <Card>
-        <SectionHeader title="Expected format" icon="code-slash-outline" />
-        <Text style={styles.schemaTitle}>TXT sample</Text>
-        <Text style={styles.schema}>
-          {`Society Name                         Date :- 19-01-2026
-Agent Wise Client Account Report
-Account Head:DAILY PIGMY ACCOUNT  007 Agent Name:Mr.GOURAV ... 00100005
-----------------------------------------------------------------------
-Ac No      Name                                Balance
-----------------------------------------------------------------------
-00700034   TUKARAM BHABUTRAO GAVALI             100.00
-00700076   TULSHIDAS GULABCHAND SHARMA           50.00`}
-        </Text>
-        <Text style={styles.schemaTitle}>Excel sample</Text>
-        <Text style={styles.schema}>
-          {`Society Name
-Agent AC No : 100001
-Agent Name : Mr.PRAKASH VITHOBA BIRGADE
-Account Head : 7  DAILY PIGMY ACCOUNT 007
-Date : 19/01/2026
-Ac No     Name                          Installment Amount  Balance
-00707313  YASH PRUTHVIRAJ WATKAR         100                 16000`}
-        </Text>
+        <SectionHeader title="Expected format" icon="code-slash-outline" subtitle="Swipe left/right to view full sample lines." />
+
+        <View style={styles.sampleCard}>
+          <View style={styles.sampleHead}>
+            <Text style={styles.sampleTag}>TXT</Text>
+            <Text style={styles.sampleTitle}>Daily report sample</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            contentContainerStyle={styles.sampleScrollContent}
+          >
+            <Text style={styles.schema} allowFontScaling={false}>
+              {TXT_SAMPLE}
+            </Text>
+          </ScrollView>
+        </View>
+
+        <View style={styles.sampleCard}>
+          <View style={styles.sampleHead}>
+            <Text style={styles.sampleTag}>Excel</Text>
+            <Text style={styles.sampleTitle}>Sheet rows sample</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator
+            contentContainerStyle={styles.sampleScrollContent}
+          >
+            <Text style={styles.schema} allowFontScaling={false}>
+              {EXCEL_SAMPLE}
+            </Text>
+          </ScrollView>
+        </View>
+
         <Text style={styles.schemaNote}>Columns auto-align in export. Import accepts extra spaces.</Text>
       </Card>
 
       <Card>
         <View style={{ gap: 12 }}>
           <Button
-            title={busy ? 'Importing…' : isAddMode ? 'Pick TXT/Excel File & Add' : 'Pick TXT/Excel File & Import'}
+            title={
+              busy
+                ? 'Importing…'
+                : isAddMode
+                  ? `Pick ${categoryText} File & Add`
+                  : `Pick ${categoryText} File & Import`
+            }
             iconLeft="folder-open-outline"
             onPress={pickAndImport}
             disabled={busy}
@@ -251,19 +325,50 @@ Ac No     Name                          Installment Amount  Balance
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    schemaTitle: { marginTop: 8, fontSize: 12, fontWeight: '800', color: theme.colors.text },
+    sampleCard: {
+      marginTop: 12,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+      overflow: 'hidden',
+    },
+    sampleHead: {
+      paddingHorizontal: 11,
+      paddingVertical: 9,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    sampleTag: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: theme.radii.pill,
+      fontSize: 11,
+      fontWeight: '900',
+      color: theme.colors.primary,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+      letterSpacing: 0.2,
+    },
+    sampleTitle: { fontSize: 12, fontWeight: '800', color: theme.colors.text },
+    sampleScrollContent: { padding: 10 },
     schema: {
-      marginTop: 6,
       fontSize: 12,
       lineHeight: 16,
       color: theme.colors.text,
       fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-      backgroundColor: theme.colors.surfaceTint,
-      borderRadius: theme.radii.sm,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       padding: 10,
+      backgroundColor: theme.colors.surface,
     },
-    schemaNote: { marginTop: 8, fontSize: 12, color: theme.colors.muted },
-    registered: { marginTop: 8, fontSize: 12, color: theme.colors.muted },
+    schemaNote: { marginTop: 9, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
+    registered: { marginTop: 9, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
   });

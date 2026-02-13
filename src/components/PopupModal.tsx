@@ -63,7 +63,7 @@ const makeStyles = (theme: Theme) =>
       padding: theme.spacing.lg,
       borderRadius: theme.radii.lg,
       backgroundColor: theme.colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       ...theme.shadow.card,
     },

@@ -34,18 +34,18 @@ export function SectionHeader({ title, subtitle, icon, right }: Props) {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: theme.radii.sm,
-    backgroundColor: theme.colors.primarySoft,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
-  subtitle: { marginTop: 2, fontSize: 13, color: theme.colors.muted },
-  right: { marginLeft: 10 },
-});
+    row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    iconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: theme.radii.sm + 2,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { fontSize: 16, fontWeight: '900', color: theme.colors.text, letterSpacing: 0.2 },
+    subtitle: { marginTop: 3, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
+    right: { marginLeft: 10 },
+  });

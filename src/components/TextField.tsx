@@ -39,14 +39,22 @@ export function TextField({
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [revealed, setRevealed] = useState(false);
+  const [focused, setFocused] = useState(false);
   const canReveal = Boolean(allowReveal && secureTextEntry);
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputRow, error ? styles.inputRowError : null, disabled ? styles.inputRowDisabled : null]}>
+      <Text style={[styles.label, focused && styles.labelFocused, disabled && styles.labelDisabled]}>{label}</Text>
+      <View
+        style={[
+          styles.inputRow,
+          focused ? styles.inputRowFocused : null,
+          error ? styles.inputRowError : null,
+          disabled ? styles.inputRowDisabled : null,
+        ]}
+      >
         {leftIcon ? (
           <View style={styles.leftIcon}>
-            <Icon name={leftIcon} size={18} color={theme.colors.muted} />
+            <Icon name={leftIcon} size={18} color={focused ? theme.colors.primary : theme.colors.muted} />
           </View>
         ) : null}
         <TextInput
@@ -60,7 +68,9 @@ export function TextField({
           autoCorrect={autoCorrect}
           editable={!disabled}
           selectionColor={theme.colors.primary}
-          style={styles.input}
+          style={[styles.input, disabled && styles.inputDisabled]}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
         {canReveal ? (
           <Pressable
@@ -81,27 +91,34 @@ export function TextField({
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  wrapper: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '800', color: theme.colors.text, letterSpacing: 0.2 },
-  inputRow: {
-    backgroundColor: theme.colors.surfaceTint,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.sm,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputRowError: { borderColor: theme.colors.danger },
-  inputRowDisabled: { opacity: 0.7 },
-  leftIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    paddingVertical: 11,
-    fontSize: 16,
-    color: theme.colors.text,
-  },
-  rightIcon: { marginLeft: 10, padding: 4 },
-  hint: { fontSize: 12, color: theme.colors.muted },
-  error: { fontSize: 12, color: theme.colors.danger, fontWeight: '700' },
-});
+    wrapper: { gap: 7 },
+    label: { fontSize: 12, fontWeight: '800', color: theme.colors.muted, letterSpacing: 0.35 },
+    labelFocused: { color: theme.colors.primary },
+    labelDisabled: { opacity: 0.7 },
+    inputRow: {
+      backgroundColor: theme.colors.surfaceTint,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radii.sm + 2,
+      paddingHorizontal: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    inputRowFocused: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.surface,
+    },
+    inputRowError: { borderColor: theme.colors.danger },
+    inputRowDisabled: { opacity: 0.68 },
+    leftIcon: { marginRight: 10 },
+    input: {
+      flex: 1,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: theme.colors.text,
+    },
+    inputDisabled: { color: theme.colors.muted },
+    rightIcon: { marginLeft: 10, padding: 4 },
+    hint: { fontSize: 12, color: theme.colors.muted, lineHeight: 16 },
+    error: { fontSize: 12, color: theme.colors.danger, fontWeight: '700', lineHeight: 16 },
+  });

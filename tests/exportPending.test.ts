@@ -7,6 +7,7 @@ const mockState = vi.hoisted(() => ({
   markCalls: [] as Array<any>,
   writes: [] as Array<{ uri: string; content: string; encoding: string | undefined }>,
   shareCalls: [] as Array<{ uri: string; options: any }>,
+  printCalls: [] as Array<{ html: string }>,
   sharingAvailable: true,
 }));
 
@@ -39,6 +40,9 @@ vi.mock('expo-file-system', () => {
       this.uri = `${dir.uri}/${name}`;
     }
     create() {}
+    async base64() {
+      return 'BASE64_FILE_CONTENT';
+    }
     write(content: string, opts?: { encoding?: string }) {
       mockState.writes.push({ uri: this.uri, content, encoding: opts?.encoding });
     }
@@ -55,6 +59,13 @@ vi.mock('expo-sharing', () => ({
   isAvailableAsync: async () => mockState.sharingAvailable,
   shareAsync: async (uri: string, options: any) => {
     mockState.shareCalls.push({ uri, options });
+  },
+}));
+
+vi.mock('expo-print', () => ({
+  printToFileAsync: async (params: { html: string }) => {
+    mockState.printCalls.push({ html: params.html });
+    return { uri: 'file:///cache/print-output.pdf' };
   },
 }));
 
@@ -100,6 +111,7 @@ describe('exportPendingAndShare', () => {
     mockState.markCalls.length = 0;
     mockState.writes.length = 0;
     mockState.shareCalls.length = 0;
+    mockState.printCalls.length = 0;
     mockState.sharingAvailable = true;
   });
 
@@ -171,5 +183,94 @@ describe('exportPendingAndShare', () => {
     expect(result?.shared).toBe(true);
     expect(mockState.shareCalls).toHaveLength(1);
     expect(mockState.shareCalls[0].uri).toContain('IAMC_SOC001_001_007_PIGMY_DAILY_20260212_101112Z.txt');
+  });
+
+  it('exports only the selected category when category filter is provided', async () => {
+    mockState.sharingAvailable = false;
+    mockState.pendingCollections = [
+      collectionRow({
+        id: 'c-daily',
+        accountNo: '00700001',
+        accountHeadCode: '007',
+        accountType: 'PIGMY',
+        frequency: 'DAILY',
+      }),
+      collectionRow({
+        id: 'c-monthly',
+        accountNo: '00900001',
+        accountHeadCode: '009',
+        accountType: 'SAVINGS',
+        frequency: 'MONTHLY',
+      }),
+      collectionRow({
+        id: 'c-loan',
+        accountNo: '02100001',
+        accountHeadCode: '021',
+        accountType: 'LOAN',
+        frequency: 'MONTHLY',
+      }),
+    ];
+
+    const result = await exportPendingAndShare({
+      db,
+      society: society as any,
+      agent: agent as any,
+      format: 'txt',
+      category: 'loan',
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.files).toHaveLength(1);
+    expect(result?.files[0].fileUri).toContain('IAMC_SOC001_001_021_LOAN_MONTHLY_20260212_101112Z.txt');
+    expect(mockState.markCalls).toHaveLength(1);
+    expect(mockState.markCalls[0].collectionsIds).toEqual(['c-loan']);
+  });
+
+  it('returns null when selected export category has no pending collections', async () => {
+    mockState.pendingCollections = [
+      collectionRow({
+        id: 'c-loan',
+        accountNo: '02100001',
+        accountHeadCode: '021',
+        accountType: 'LOAN',
+        frequency: 'MONTHLY',
+      }),
+    ];
+
+    const result = await exportPendingAndShare({
+      db,
+      society: society as any,
+      agent: agent as any,
+      format: 'txt',
+      category: 'daily',
+    });
+
+    expect(result).toBeNull();
+    expect(mockState.markCalls).toHaveLength(0);
+    expect(mockState.writes).toHaveLength(0);
+  });
+
+  it('exports as pdf when requested and shares with pdf mime type', async () => {
+    mockState.pendingCollections = [
+      collectionRow({
+        id: 'c-1',
+        accountNo: '00700001',
+        clientName: 'PIGMY CLIENT',
+        accountHeadCode: '007',
+        accountType: 'PIGMY',
+        frequency: 'DAILY',
+      }),
+    ];
+
+    const result = await exportPendingAndShare({ db, society: society as any, agent: agent as any, format: 'pdf' });
+
+    expect(result).not.toBeNull();
+    expect(result?.files).toHaveLength(1);
+    expect(mockState.printCalls).toHaveLength(1);
+    expect(mockState.writes).toHaveLength(1);
+    expect(mockState.writes[0].uri).toContain('IAMC_SOC001_001_007_PIGMY_DAILY_20260212_101112Z.pdf');
+    expect(mockState.writes[0].encoding).toBe('base64');
+    expect(mockState.shareCalls).toHaveLength(1);
+    expect(mockState.shareCalls[0].options?.mimeType).toBe('application/pdf');
   });
 });

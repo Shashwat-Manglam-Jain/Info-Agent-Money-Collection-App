@@ -35,6 +35,7 @@ export function Button({ title, onPress, disabled, loading, variant = 'primary',
         variant === 'ghost' && styles.ghost,
         isDisabled && styles.disabled,
         pressed && !isDisabled && styles.pressed,
+        pressed && !isDisabled && variant === 'primary' && styles.pressedPrimary,
         style,
       ]}
     >
@@ -53,28 +54,39 @@ export function Button({ title, onPress, disabled, loading, variant = 'primary',
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  base: {
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    borderRadius: theme.radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  primary: { backgroundColor: theme.colors.primary, ...theme.shadow.card },
-  secondary: {
-    backgroundColor: theme.colors.primarySoft,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  danger: { backgroundColor: theme.colors.danger },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
-  },
-  pressed: { opacity: 0.9 },
-  disabled: { opacity: 0.5 },
-  text: { color: theme.colors.textOnDark, fontSize: 16, fontWeight: '700' },
-  textGhost: { color: theme.colors.primary },
-});
+    base: {
+      minHeight: 48,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: theme.radii.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    content: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    primary: {
+      backgroundColor: theme.colors.primary,
+      borderWidth: 1,
+      borderColor: theme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(7,43,94,0.1)',
+      ...theme.shadow.card,
+    },
+    secondary: {
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    danger: {
+      backgroundColor: theme.colors.danger,
+      borderWidth: 1,
+      borderColor: theme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(120,24,24,0.12)',
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    pressed: { opacity: 0.92, transform: [{ scale: 0.99 }] },
+    pressedPrimary: { opacity: 0.95 },
+    disabled: { opacity: 0.55 },
+    text: { color: theme.colors.textOnDark, fontSize: 15, fontWeight: '800', letterSpacing: 0.2 },
+    textGhost: { color: theme.colors.primary },
+  });

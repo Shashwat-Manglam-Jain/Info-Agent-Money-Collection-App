@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Directory, File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 
 import { useApp } from '../../appState/AppProvider';
@@ -14,8 +14,8 @@ import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
 import { listExportsForDate } from '../../db/repo';
 import type { ExportRecord } from '../../models/types';
-import { getErrorMessage } from '../../utils/errors';
-import { paiseToRupees, rupeesToPaise } from '../../utils/money';
+import type { RootStackParamList } from '../../navigation/types';
+import { rupeesToPaise } from '../../utils/money';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
 
@@ -50,6 +50,7 @@ type HistoryItem = {
   fileName: string;
   displayTitle: string;
   displaySub: string;
+  collectionsCount: number | null;
   dateISO: string | null;
   exportedAtISO: string | null;
   lotCode: string | null;
@@ -79,11 +80,6 @@ function buildISODate(year: number, monthIndex: number, day: number): string {
   return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`;
 }
 
-function formatTimestamp(iso: string | null): string {
-  if (!iso) return '—';
-  return iso.replace('T', ' ').replace('Z', '');
-}
-
 function fileNameFromUri(uri: string | null): string {
   if (!uri) return '—';
   const parts = uri.split('/');
@@ -102,7 +98,7 @@ function parseExportFileName(name: string): {
   lotCode: string | null;
   extension: string | null;
 } {
-  const match = name.match(/IAMC_([^_]+)_([^_]+)_(.+)_(\d{8})_(\d{6})Z\.(json|xlsx|xls|txt)$/i);
+  const match = name.match(/IAMC_([^_]+)_([^_]+)_(.+)_(\d{8})_(\d{6})Z\.(json|xlsx|xls|txt|pdf)$/i);
   if (!match) {
     return { societyCode: null, agentCode: null, dateISO: null, timeISO: null, lotCode: null, extension: null };
   }
@@ -144,6 +140,18 @@ function buildExportViewDefaults(): ExportView {
 
 async function parseExportFile(fileUri: string, fileName: string): Promise<ExportView> {
   const lower = fileName.toLowerCase();
+  if (lower.endsWith('.pdf')) {
+    const view = buildExportViewDefaults();
+    const meta = parseExportFileName(fileName);
+    if (meta.dateISO && meta.timeISO) {
+      view.exportedAt = `${meta.dateISO}T${meta.timeISO}Z`;
+    }
+    if (meta.lotCode) {
+      view.lotLabel = meta.lotCode;
+    }
+    return view;
+  }
+
   if (lower.endsWith('.json')) {
     const text = await new File(fileUri).text();
     const payload = JSON.parse(text) as any;
@@ -264,6 +272,7 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
 }
 
 export function ReportsScreen() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -279,9 +288,6 @@ export function ReportsScreen() {
   const [dataDates, setDataDates] = useState<Set<string>>(new Set());
   const [exportRecords, setExportRecords] = useState<ExportRecord[]>([]);
   const [deviceFiles, setDeviceFiles] = useState<DeviceFile[]>([]);
-  const [exportDetail, setExportDetail] = useState<ExportView | null>(null);
-  const [exportDetailSource, setExportDetailSource] = useState<{ fileUri: string; fileName: string } | null>(null);
-  const [exportLoadingKey, setExportLoadingKey] = useState<string | null>(null);
   const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
   const exportDir = useMemo(() => new Directory(Paths.document, 'exports'), []);
 
@@ -337,33 +343,6 @@ export function ReportsScreen() {
   const goToday = useCallback(() => {
     selectDate(today);
   }, [selectDate, today]);
-
-  const openFile = useCallback(
-    async (fileUri: string, fileName: string, key: string) => {
-      if (exportDetailSource?.fileUri === fileUri) {
-        setExportDetail(null);
-        setExportDetailSource(null);
-        return;
-      }
-      setExportLoadingKey(key);
-      try {
-        const view = await parseExportFile(fileUri, fileName);
-        setExportDetail(view);
-        setExportDetailSource({ fileUri, fileName });
-      } catch (e: unknown) {
-        showMessage('Open failed', getErrorMessage(e));
-      } finally {
-        setExportLoadingKey(null);
-      }
-    },
-    [exportDetailSource, showMessage]
-  );
-
-  const shareExport = useCallback(async (source: { fileUri: string } | null) => {
-    if (!source?.fileUri) return;
-    if (!(await Sharing.isAvailableAsync())) return;
-    await Sharing.shareAsync(source.fileUri);
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -446,8 +425,12 @@ export function ReportsScreen() {
   const historyItems = useMemo(() => {
     const items: HistoryItem[] = [];
     const seen = new Set<string>();
+    const availableUris = new Set(deviceFiles.map((file) => file.uri));
 
     for (const record of exportRecords) {
+      if (!record.fileUri || !availableUris.has(record.fileUri)) {
+        continue;
+      }
       const name = fileNameFromUri(record.fileUri);
       const meta = parseExportFileName(name);
       const dateISO = meta.dateISO ?? record.exportedAt?.slice(0, 10) ?? null;
@@ -460,6 +443,7 @@ export function ReportsScreen() {
         fileName: name,
         displayTitle: title,
         displaySub: subParts.join(' • '),
+        collectionsCount: record.collectionsCount,
         dateISO,
         exportedAtISO: record.exportedAt ?? null,
         lotCode: meta.lotCode,
@@ -480,6 +464,7 @@ export function ReportsScreen() {
         fileName: file.name,
         displayTitle: title,
         displaySub: subParts.join(' • '),
+        collectionsCount: file.collectionsCount,
         dateISO: file.dateISO,
         exportedAtISO: file.exportedAtISO,
         lotCode: file.lotCode,
@@ -541,15 +526,17 @@ export function ReportsScreen() {
           })}
         </View>
         <View style={styles.calendarLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <Text style={styles.legendText}>Has data</Text>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, styles.dotActive]} />
+              <Text style={styles.legendText}>Has data</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendSwatch, styles.legendSelected]} />
+              <Text style={styles.legendText}>Selected</Text>
+            </View>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendSwatch, styles.legendSelected]} />
-            <Text style={styles.legendText}>Selected</Text>
-          </View>
-          <Button title="Today" variant="secondary" onPress={goToday} iconLeft="today-outline" />
+          <Button title="Today" variant="secondary" onPress={goToday} iconLeft="today-outline" style={styles.todayButton} />
         </View>
       </Card>
 
@@ -572,7 +559,13 @@ export function ReportsScreen() {
               <Pressable
                 onPress={() =>
                   item.fileUri
-                    ? openFile(item.fileUri, item.fileName, item.key)
+                    ? nav.navigate('ExportDetail', {
+                        fileUri: item.fileUri,
+                        fileName: item.fileName,
+                        exportedAtISO: item.exportedAtISO,
+                        lotCode: item.lotCode,
+                        collectionsCount: item.collectionsCount,
+                      })
                     : showMessage('File not available', 'This export does not have a file path.')
                 }
                 style={styles.rowPress}
@@ -582,66 +575,13 @@ export function ReportsScreen() {
                   <Text style={styles.rowSub}>{item.displaySub}</Text>
                 </View>
                 <View style={styles.viewChip}>
-                  <Text style={styles.viewChipText}>
-                    {exportLoadingKey === item.key ? 'Loading…' : 'View'}
-                  </Text>
+                  <Text style={styles.viewChipText}>View</Text>
                 </View>
               </Pressable>
             )}
           />
         )}
       </Card>
-
-      {exportDetail && exportDetailSource ? (
-        <Card>
-          <SectionHeader
-            title="Export Details"
-            subtitle={exportDetailSource.fileName}
-            icon="document-text-outline"
-            right={
-              <Pressable
-                onPress={() => {
-                  setExportDetail(null);
-                  setExportDetailSource(null);
-                }}
-                style={styles.closeChip}
-              >
-                <Text style={styles.closeChipText}>Close</Text>
-              </Pressable>
-            }
-          />
-          <View style={{ height: 10 }} />
-          <Text style={styles.kv}>Exported at: {formatTimestamp(exportDetail.exportedAt)}</Text>
-          <Text style={styles.kv}>Society: {exportDetail.societyName}</Text>
-          <Text style={styles.kv}>Agent: {exportDetail.agentCode} • {exportDetail.agentName}</Text>
-          {exportDetail.lotLabel ? <Text style={styles.kv}>Lot: {exportDetail.lotLabel}</Text> : null}
-          <Text style={styles.kv}>Collections: {exportDetail.collections.length}</Text>
-          <View style={{ height: 12 }} />
-          <Button
-            title="Share Export File"
-            variant="secondary"
-            iconLeft="share-outline"
-            onPress={() => shareExport(exportDetailSource)}
-          />
-          <View style={{ height: 12 }} />
-          <FlatList
-            data={exportDetail.collections}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={styles.sep} />}
-            renderItem={({ item }) => (
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{item.accountNo} • {item.clientName}</Text>
-                  <Text style={styles.rowSub}>Date: {item.collectionDate}</Text>
-                  {item.remarks ? <Text style={styles.rowSub}>Remarks: {item.remarks}</Text> : null}
-                </View>
-                <Text style={styles.rowAmount}>₹{paiseToRupees(item.collectedPaise).toFixed(2)}</Text>
-              </View>
-            )}
-          />
-        </Card>
-      ) : null}
       <PopupModal
         visible={!!popup}
         title={popup?.title ?? ''}
@@ -655,20 +595,24 @@ export function ReportsScreen() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    kv: { marginTop: 6, fontSize: 14, color: theme.colors.text },
-    sep: { height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border },
-    row: { paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
-    rowPress: { paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
-    rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
-    rowSub: { fontSize: 12, color: theme.colors.muted, marginTop: 2 },
-    rowAmount: { fontSize: 14, fontWeight: '800', color: theme.colors.text },
+    sep: { height: 1, backgroundColor: theme.colors.border },
+    rowPress: {
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+      borderRadius: theme.radii.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    rowTitle: { fontSize: 15, fontWeight: '900', color: theme.colors.text },
+    rowSub: { fontSize: 12, color: theme.colors.muted, marginTop: 3, lineHeight: 17 },
     calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    monthLabel: { fontSize: 16, fontWeight: '800', color: theme.colors.text },
+    monthLabel: { fontSize: 17, fontWeight: '900', color: theme.colors.text },
     monthNav: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: StyleSheet.hairlineWidth,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       alignItems: 'center',
       justifyContent: 'center',
@@ -680,41 +624,34 @@ const makeStyles = (theme: Theme) =>
     calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
     dayCell: { width: '14.285%', alignItems: 'center', marginVertical: 6 },
     dayButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'transparent',
     },
     dayHasData: { backgroundColor: theme.colors.primarySoft },
     daySelected: { backgroundColor: theme.colors.primary },
-    dayToday: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.primary },
+    dayToday: { borderWidth: 1, borderColor: theme.colors.primary },
     dayText: { fontSize: 13, fontWeight: '700', color: theme.colors.text },
     dayTextSelected: { color: theme.colors.textOnDark },
     dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'transparent', marginTop: 4 },
     dotActive: { backgroundColor: theme.colors.primary },
-    calendarLegend: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+    calendarLegend: { marginTop: 12, gap: 10 },
+    legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     legendText: { fontSize: 12, color: theme.colors.muted },
     legendSwatch: { width: 12, height: 12, borderRadius: 6, backgroundColor: theme.colors.surfaceTint },
     legendSelected: { backgroundColor: theme.colors.primary },
+    todayButton: { width: '100%' },
     viewChip: {
       paddingVertical: 6,
       paddingHorizontal: 12,
       borderRadius: theme.radii.pill,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
     },
     viewChipText: { fontSize: 12, fontWeight: '800', color: theme.colors.primary },
-    closeChip: {
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: theme.radii.pill,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surfaceTint,
-    },
-    closeChipText: { fontSize: 12, fontWeight: '800', color: theme.colors.muted },
   });

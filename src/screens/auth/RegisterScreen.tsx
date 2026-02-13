@@ -1,251 +1,148 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, View, Dimensions, Image, Text } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { TextInput, TouchableOpacity } from 'react-native';
+
 import { useApp } from '../../appState/AppProvider';
-// import { setAgentPin } from '../../db/repo';
+import { AuthScreen } from '../../components/AuthScreen';
+import { Button } from '../../components/Button';
+import { Card } from '../../components/Card';
+import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
-
-const { height: screenHeight } = Dimensions.get('window');
 
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  
+
   const [agentCode, setAgentCode] = useState('');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const pinMismatch = pin.length > 0 && confirmPin.length > 0 && pin !== confirmPin;
+  const pinTooShort = pin.length > 0 && pin.length < 4;
+
   const submit = async () => {
     if (!db) return;
-    const a = agentCode.trim();
-    
-    if (!a || pin.length < 4 || pin !== confirmPin) {
+    const trimmedAgentCode = agentCode.trim();
+    if (!trimmedAgentCode) {
+      Alert.alert('Missing agent code', 'Enter a valid agent code.');
       return;
     }
-    
+    if (pin.length < 4) {
+      Alert.alert('Invalid PIN', 'PIN must be at least 4 digits.');
+      return;
+    }
+    if (pin !== confirmPin) {
+      Alert.alert('PIN mismatch', 'PIN and confirm PIN must match.');
+      return;
+    }
+
     setBusy(true);
     try {
-      // await setAgentPin({ db, societyCode: s, agentCode: a, pin });
+      // TODO: Persist PIN once registration endpoint is finalized.
       nav.goBack();
-    } catch (e: unknown) {
-      console.error('Failed to set PIN:', e);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Image 
-        source={require('../../../assets/login.png')} 
-        style={styles.fullImage}
-        resizeMode="contain"
-      />
-
-      <View style={styles.contentContainer}>
-        <Text style={styles.registerTitle}>Register</Text>
-        <View style={styles.formCard}>
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Agent Code</Text>
-            {/* <Text style={styles.hintText}>provided by society</Text> */}
-            <View style={styles.inputField}>
-              <TextInput
-                style={styles.textInput}
-                value={agentCode}
-                onChangeText={setAgentCode}
-                placeholder=""
-                autoCapitalize="characters"
-                placeholderTextColor={theme.colors.muted}
-              />
-            </View>
-          </View>
-
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>New PIN</Text>
-            {/* <Text style={styles.hintText}>Minimum 4 digits</Text> */}
-            <View style={styles.inputField}>
-              <TextInput
-                style={styles.textInput}
-                value={pin}
-                onChangeText={(v) => setPin(v.replace(/[^0-9]/g, ''))}
-                placeholder=""
-                keyboardType="number-pad"
-                secureTextEntry
-                placeholderTextColor={theme.colors.muted}
-              />
-            </View>
-          </View>
-
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Confirm PIN</Text>
-            <View style={styles.inputField}>
-              <TextInput
-                style={styles.textInput}
-                value={confirmPin}
-                onChangeText={(v) => setConfirmPin(v.replace(/[^0-9]/g, ''))}
-                placeholder=""
-                keyboardType="number-pad"
-                secureTextEntry
-                placeholderTextColor={theme.colors.muted}
-              />
-            </View>
-          </View>
-
-          <View style={styles.saveButtonContainer}>
-            <TouchableOpacity 
-              style={[styles.saveButton, busy && styles.saveButtonDisabled]} 
-              onPress={submit}
-              disabled={busy}
-            >
-              <Text style={styles.saveButtonText}>Save PIN</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity 
-              style={styles.importButton}
-              onPress={() => nav.navigate('ImportMasterData')}
-            >
-              <Text style={styles.importButtonText}>IMPORT DATA</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => nav.goBack()}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          </View>
+    <AuthScreen title="Register PIN" subtitle="Create a secure PIN for your agent profile.">
+      <Card style={styles.formCard}>
+        <View style={styles.formFields}>
+          <TextField
+            label="Agent Code"
+            value={agentCode}
+            onChangeText={(value) => setAgentCode(value.toUpperCase())}
+            placeholder="e.g. AG001"
+            leftIcon="agent"
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+          <TextField
+            label="New PIN"
+            value={pin}
+            onChangeText={(value) => setPin(value.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            secureTextEntry
+            allowReveal
+            placeholder="At least 4 digits"
+            leftIcon="key-outline"
+            autoCorrect={false}
+            error={pinTooShort ? 'PIN must be at least 4 digits.' : undefined}
+          />
+          <TextField
+            label="Confirm PIN"
+            value={confirmPin}
+            onChangeText={(value) => setConfirmPin(value.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            secureTextEntry
+            allowReveal
+            placeholder="Re-enter PIN"
+            leftIcon="checkmark-circle-outline"
+            autoCorrect={false}
+            error={pinMismatch ? 'PIN does not match.' : undefined}
+          />
         </View>
 
-        <Text style={styles.poweredBy}>Powered by Infopath Solutions</Text>
-      </View>
-    </View>
+        <Button
+          title={busy ? 'Saving…' : 'Save PIN'}
+          iconLeft="save-outline"
+          onPress={submit}
+          loading={busy}
+          disabled={busy || !agentCode.trim() || pin.length < 4 || pin !== confirmPin}
+        />
+
+        <View style={styles.secondaryActions}>
+          <Button
+            title="Import Daily File"
+            variant="ghost"
+            iconLeft="cloud-download-outline"
+            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'daily' })}
+          />
+          <Button
+            title="Import Monthly File"
+            variant="ghost"
+            iconLeft="document-text-outline"
+            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'monthly' })}
+          />
+          <Button
+            title="Import Loan File"
+            variant="ghost"
+            iconLeft="cash-outline"
+            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'loan' })}
+          />
+          <Button title="Back to Sign In" variant="secondary" iconLeft="arrow-back-outline" onPress={() => nav.goBack()} />
+        </View>
+      </Card>
+
+      <Text style={styles.supportText}>Use a PIN only known to this agent profile for secure collection updates.</Text>
+    </AuthScreen>
   );
 }
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.appBg,
-    },
-    fullImage: {
-      width: '100%',
-      height: screenHeight * 0.2,
-    },
-    contentContainer: {
-      flex: 1,
-      padding: theme.spacing.lg,
-      paddingTop: 0,
-    },
-    registerTitle: {
-      fontSize: 22,
-      fontWeight: 'bold',
-      color: theme.colors.text,
-      marginBottom: 15,
-      textAlign: 'center',
-    },
     formCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      padding: theme.spacing.md,
-      ...theme.shadow.card,
+      gap: 14,
+      backgroundColor: theme.isDark ? 'rgba(24,40,61,0.92)' : 'rgba(255,255,255,0.96)',
     },
-    formSection: {
-      marginBottom: 12,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.text,
-      marginBottom: 3,
-    },
-    hintText: {
-      fontSize: 12,
-      color: theme.colors.muted,
-      marginBottom: 5,
-      fontStyle: 'italic',
-    },
-    inputField: {
-      backgroundColor: theme.colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-      borderRadius: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      height: 48,
-      justifyContent: 'center',
-    },
-    textInput: {
-      fontSize: 16,
-      color: theme.colors.text,
-      padding: 0,
-    },
-    saveButtonContainer: {
-      marginBottom: 15,
-      marginTop: 8,
-    },
-    saveButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: 8,
-      paddingVertical: 14,
-      alignItems: 'center',
-    },
-    saveButtonDisabled: {
-      backgroundColor: theme.colors.primarySoft,
-    },
-    saveButtonText: {
-      color: theme.colors.textOnDark,
-      fontSize: 16,
-      fontWeight: 'bold',
-    },
-    actionButtonsContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+    formFields: {
       gap: 12,
-      marginTop: 5,
     },
-    importButton: {
-      flex: 1,
-      backgroundColor: theme.colors.surfaceTint,
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
+    secondaryActions: {
+      gap: 8,
     },
-    importButtonText: {
-      color: theme.colors.text,
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-    backButton: {
-      flex: 1,
-      backgroundColor: theme.colors.surfaceTint,
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.colors.border,
-    },
-    backButtonText: {
-      color: theme.colors.text,
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-    poweredBy: {
+    supportText: {
+      color: theme.colors.mutedOnDark,
+      fontSize: 12,
       textAlign: 'center',
-      color: theme.colors.muted,
-      fontSize: 11,
-      marginTop: 8,
+      lineHeight: 18,
+      paddingHorizontal: 6,
     },
   });

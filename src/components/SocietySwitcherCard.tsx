@@ -65,7 +65,8 @@ export function SocietySwitcherCard() {
   return (
     <Card>
       <SectionHeader
-        title="Society"
+        title="Company & Agent"
+        subtitle="Current working profile"
         icon="business-outline"
         right={(
           <View style={styles.actionsRow}>
@@ -74,7 +75,7 @@ export function SocietySwitcherCard() {
               style={styles.switchButton}
               accessibilityLabel="Add society"
             >
-              <Icon name="add-outline" size={16} color={theme.colors.primary} />
+              <Icon name="add-circle-outline" size={16} color={theme.colors.primary} />
               <Text style={styles.switchText}>Add</Text>
             </Pressable>
             <Pressable onPress={openSwitcher} style={styles.switchButton} accessibilityLabel="Change society">
@@ -84,8 +85,35 @@ export function SocietySwitcherCard() {
           </View>
         )}
       />
-      <Text style={styles.kv}>{society?.name ?? '—'} ({society?.code ?? '—'})</Text>
-      <Text style={styles.kv}>Agent: {agent?.code ?? '—'} • {agent?.name ?? '—'}</Text>
+      <View style={styles.identityCard}>
+        <View style={styles.identityIconWrap}>
+          <Icon name="company" size={18} color={theme.colors.primary} />
+        </View>
+        <View style={styles.identityBody}>
+          <Text style={styles.identityLabel}>Company</Text>
+          <Text style={styles.identityName} numberOfLines={1}>
+            {society?.name ?? '—'}
+          </Text>
+        </View>
+        <View style={styles.codeChip}>
+          <Text style={styles.codeChipText}>{society?.code ?? '—'}</Text>
+        </View>
+      </View>
+
+      <View style={styles.identityCard}>
+        <View style={styles.identityIconWrap}>
+          <Icon name="agent" size={18} color={theme.colors.primary} />
+        </View>
+        <View style={styles.identityBody}>
+          <Text style={styles.identityLabel}>Agent</Text>
+          <Text style={styles.identityName} numberOfLines={1}>
+            {agent?.name ?? '—'}
+          </Text>
+        </View>
+        <View style={styles.codeChip}>
+          <Text style={styles.codeChipText}>{agent?.code ?? '—'}</Text>
+        </View>
+      </View>
 
       <PopupModal
         visible={!!popup}
@@ -100,7 +128,6 @@ export function SocietySwitcherCard() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    kv: { marginTop: 6, fontSize: 14, color: theme.colors.text },
     actionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -110,12 +137,62 @@ const makeStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
       borderRadius: theme.radii.pill,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
     },
-    switchText: { fontSize: 12, fontWeight: '700', color: theme.colors.primary },
+    switchText: { fontSize: 12, fontWeight: '800', color: theme.colors.primary, letterSpacing: 0.2 },
+    identityCard: {
+      marginTop: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radii.sm + 2,
+      backgroundColor: theme.colors.surfaceTint,
+      paddingHorizontal: 11,
+      paddingVertical: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    identityIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: theme.radii.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    identityBody: { flex: 1, minWidth: 0 },
+    identityLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    identityName: {
+      marginTop: 2,
+      fontSize: 14,
+      fontWeight: '900',
+      color: theme.colors.text,
+    },
+    codeChip: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    codeChipText: {
+      fontSize: 12,
+      fontWeight: '900',
+      color: theme.colors.primary,
+      letterSpacing: 0.2,
+    },
   });

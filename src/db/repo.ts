@@ -619,15 +619,25 @@ export async function getPendingExportCounts(params: {
   db: SQLiteDatabase;
   societyId: string;
   agentId: string;
-}): Promise<{ collections: number }> {
-  const c = await params.db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count
-     FROM collections
-     WHERE society_id = ? AND agent_id = ? AND status = 'PENDING';`,
+}): Promise<{ collections: number; daily: number; monthly: number; loan: number }> {
+  const c = await params.db.getFirstAsync<{ count: number; daily: number; monthly: number; loan: number }>(
+    `SELECT
+       COUNT(*) as count,
+       COALESCE(SUM(CASE WHEN a.account_type = 'LOAN' THEN 1 ELSE 0 END), 0) as loan,
+       COALESCE(SUM(CASE WHEN a.account_type <> 'LOAN' AND a.frequency = 'DAILY' THEN 1 ELSE 0 END), 0) as daily,
+       COALESCE(SUM(CASE WHEN a.account_type <> 'LOAN' AND a.frequency = 'MONTHLY' THEN 1 ELSE 0 END), 0) as monthly
+     FROM collections c
+     JOIN accounts a ON a.id = c.account_id
+     WHERE c.society_id = ? AND c.agent_id = ? AND c.status = 'PENDING';`,
     params.societyId,
     params.agentId
   );
-  return { collections: c?.count ?? 0 };
+  return {
+    collections: c?.count ?? 0,
+    daily: c?.daily ?? 0,
+    monthly: c?.monthly ?? 0,
+    loan: c?.loan ?? 0,
+  };
 }
 
 export async function listExportsForDate(params: {

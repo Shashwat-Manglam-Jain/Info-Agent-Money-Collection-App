@@ -18,10 +18,11 @@ const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     card: {
       backgroundColor: theme.colors.surface,
-      borderRadius: theme.radii.md,
+      borderRadius: theme.radii.md + 2,
       padding: theme.spacing.md,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: theme.colors.border,
+      overflow: 'hidden',
       ...theme.shadow.card,
     },
   });

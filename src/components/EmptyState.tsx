@@ -27,15 +27,17 @@ export function EmptyState({ icon, title, message }: Props) {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-  wrap: { alignItems: 'center', paddingVertical: 18, paddingHorizontal: 10 },
-  icon: {
-    width: 46,
-    height: 46,
-    borderRadius: theme.radii.pill,
-    backgroundColor: theme.colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { marginTop: 10, fontSize: 14, fontWeight: '900', color: theme.colors.text, textAlign: 'center' },
-  message: { marginTop: 6, fontSize: 13, color: theme.colors.muted, textAlign: 'center', lineHeight: 18 },
-});
+    wrap: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 14 },
+    icon: {
+      width: 54,
+      height: 54,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { marginTop: 12, fontSize: 15, fontWeight: '900', color: theme.colors.text, textAlign: 'center' },
+    message: { marginTop: 7, fontSize: 13, color: theme.colors.muted, textAlign: 'center', lineHeight: 19 },
+  });

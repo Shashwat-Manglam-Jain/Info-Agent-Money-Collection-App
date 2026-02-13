@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import * as XLSX from 'xlsx';
@@ -10,7 +11,8 @@ import { listPendingCollections, markExported } from '../db/repo';
 import { lotKeyFromParts } from '../utils/lots';
 import { validatePendingCollectionsForExport } from './exportValidation';
 
-export type ExportFormat = 'xlsx' | 'txt';
+export type ExportFormat = 'xlsx' | 'txt' | 'pdf';
+export type ExportCategory = 'daily' | 'monthly' | 'loan';
 
 export type ExportFileResult = {
   fileUri: string;
@@ -66,6 +68,12 @@ function lotInfoFromCollection(c: ExportCollectionRow): {
     accountType: c.accountType,
     frequency: c.frequency,
   };
+}
+
+function matchesExportCategory(collection: ExportCollectionRow, category: ExportCategory): boolean {
+  if (category === 'loan') return collection.accountType === 'LOAN';
+  if (category === 'daily') return collection.accountType !== 'LOAN' && collection.frequency === 'DAILY';
+  return collection.accountType !== 'LOAN' && collection.frequency === 'MONTHLY';
 }
 
 function buildHeaderRows(params: { society: Society; agent: Agent; exportedAt: string; lotLabel: string }): string[][] {
@@ -151,18 +159,99 @@ function buildExcelBase64(params: {
   return XLSX.write(workbook, { type: 'base64', bookType: 'xlsx' });
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildPdfHtml(params: {
+  society: Society;
+  agent: Agent;
+  exportedAt: string;
+  lotLabel: string;
+  collections: ExportCollectionRow[];
+}): string {
+  const rows = params.collections
+    .map(
+      (collection) => `
+      <tr>
+        <td>${escapeHtml(collection.accountNo)}</td>
+        <td>${escapeHtml(collection.clientName)}</td>
+        <td>${escapeHtml(collection.accountHead ?? '')}</td>
+        <td>${escapeHtml(collection.accountHeadCode ?? '')}</td>
+        <td>${escapeHtml(collection.accountType)}</td>
+        <td>${escapeHtml(collection.frequency)}</td>
+        <td style="text-align:right;">${escapeHtml(String(paiseToRupees(collection.collectedPaise)))}</td>
+        <td>${escapeHtml(collection.collectedAt)}</td>
+        <td>${escapeHtml(collection.collectionDate)}</td>
+        <td>${escapeHtml(collection.remarks ?? '')}</td>
+      </tr>`
+    )
+    .join('');
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 11px; color: #111827; padding: 20px; }
+      h1 { font-size: 16px; margin: 0 0 8px; }
+      .meta { margin: 2px 0; color: #374151; }
+      table { border-collapse: collapse; width: 100%; margin-top: 14px; }
+      th, td { border: 1px solid #d1d5db; padding: 6px; vertical-align: top; }
+      th { background: #f3f4f6; font-weight: 700; text-align: left; }
+      tr:nth-child(even) td { background: #fafafa; }
+    </style>
+  </head>
+  <body>
+    <h1>Pending Collections Export</h1>
+    <div class="meta"><strong>Society:</strong> ${escapeHtml(params.society.name)}</div>
+    <div class="meta"><strong>Agent:</strong> ${escapeHtml(params.agent.code)} - ${escapeHtml(params.agent.name)}</div>
+    <div class="meta"><strong>Exported At:</strong> ${escapeHtml(params.exportedAt)}</div>
+    <div class="meta"><strong>Lot:</strong> ${escapeHtml(params.lotLabel)}</div>
+    <div class="meta"><strong>Collections:</strong> ${params.collections.length}</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Account No</th>
+          <th>Client Name</th>
+          <th>Account Head</th>
+          <th>Head Code</th>
+          <th>Type</th>
+          <th>Frequency</th>
+          <th>Amount</th>
+          <th>Collected At</th>
+          <th>Collection Date</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body>
+</html>`;
+}
+
 export async function exportPendingAndShare(params: {
   db: SQLiteDatabase;
   society: Society;
   agent: Agent;
   format?: ExportFormat;
+  category?: ExportCategory;
 }): Promise<{ files: ExportFileResult[]; shared: boolean } | null> {
   const exportedAt = nowISO();
-  const collections = await listPendingCollections({
+  const allCollections = await listPendingCollections({
     db: params.db,
     societyId: params.society.id,
     agentId: params.agent.id,
   });
+  const category = params.category;
+  const collections = category
+    ? allCollections.filter((collection) => matchesExportCategory(collection, category))
+    : allCollections;
 
   if (collections.length === 0) return null;
   validatePendingCollectionsForExport(collections);
@@ -198,7 +287,7 @@ export async function exportPendingAndShare(params: {
     const lotLabel = group.lotCode ? `${group.lotName} (${group.lotCode})` : group.lotName;
     const lotFileCode = sanitizeSegment(group.lotFileCode);
     const stamp = compactNowForFilename(exportedAt);
-    const ext = format === 'txt' ? 'txt' : 'xlsx';
+    const ext = format === 'txt' ? 'txt' : format === 'pdf' ? 'pdf' : 'xlsx';
     const fileName = `IAMC_${params.society.code}_${params.agent.code}_${lotFileCode}_${stamp}.${ext}`;
     const file = new File(exportDir, fileName);
     file.create({ intermediates: true, overwrite: true });
@@ -212,6 +301,17 @@ export async function exportPendingAndShare(params: {
         collections: group.items,
       });
       file.write(content, { encoding: 'utf8' });
+    } else if (format === 'pdf') {
+      const html = buildPdfHtml({
+        society: params.society,
+        agent: params.agent,
+        exportedAt,
+        lotLabel,
+        collections: group.items,
+      });
+      const printed = await Print.printToFileAsync({ html });
+      const base64 = await new File(printed.uri).base64();
+      file.write(base64, { encoding: 'base64' });
     } else {
       const base64 = buildExcelBase64({
         society: params.society,
@@ -252,7 +352,12 @@ export async function exportPendingAndShare(params: {
     const fileUri = results[0].fileUri;
     await Sharing.shareAsync(fileUri, {
       dialogTitle: 'Export pending collections',
-      mimeType: format === 'txt' ? 'text/plain' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      mimeType:
+        format === 'txt'
+          ? 'text/plain'
+          : format === 'pdf'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
     shared = true;
   }
