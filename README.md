@@ -1,193 +1,167 @@
-# Info Agent Money Collection (Expo / React Native)
+# Info Agent Money Collection
 
-Mobile app for credit cooperative societies to manage **Daily / Weekly / Monthly** collections with field agents. Admin provides the daily master file (TXT/Excel). Agents import, collect amounts, and export results back to the society.
+Expo + React Native mobile app for cooperative society field collections.
+It imports agent master files (TXT/Excel), lets agents collect amounts, exports pending collections per account type (lot), and keeps local export history.
 
-## Table of Contents
-1. Overview
-2. Features
-3. Requirements
-4. Install & Run
-5. Core Workflow
-6. Registration (Device)
-7. Import (TXT / Excel)
-8. Account Types (Lots)
-9. Collect Money
-10. Export & Clear
-11. History & Reports
-12. Theme & UI
-13. Data Storage
-14. File Naming & Locations
-15. Validation Rules
-16. Security Notes
-17. Testing
-18. Project Structure
-19. Troubleshooting
-20. FAQs
+## 1. Tech Stack
+- React Native + Expo
+- TypeScript
+- SQLite (`expo-sqlite`) for app data
+- SecureStore (`expo-secure-store`) for session
+- File handling: `expo-file-system`, `expo-document-picker`, `expo-sharing`
+- Testing: Vitest
 
-## 1. Overview
-- Used by agents to collect money from clients.
-- Society/admin sends **one file per agent** per day.
-- Agents can handle **multiple account types** (Daily/Monthly/Loan) in the same day.
-
-## 2. Features
-- TXT and Excel import.
-- Auto login after import (PIN fixed to `0000`).
-- Multiple account types per agent (handled as separate lots).
-- Export per lot (Excel by default, TXT optional).
-- Export history with in-app viewer.
-- Fast search by last digits of account number.
-- Edit last saved collection for corrections.
-- Light/Dark theme based on device settings.
-
-## 3. Requirements
-- Node.js 18+ recommended.
-- Expo Go or native build setup.
-
-## 4. Install & Run
+## 2. Quick Start
 ```bash
 npm install
 npm start
 ```
 
-## 5. Core Workflow
-1. Agent registers device with Society Name and Agent Name.
-2. Agent imports the daily TXT/Excel report shared by admin.
-3. App auto logs in and loads accounts.
-4. Agent collects amounts and saves entries.
-5. Agent exports pending entries (per lot) and shares the file back.
-6. Exported account type data clears locally so next day import is clean.
-
-## 6. Registration (Device)
-Location: **Login screen**
-- Enter **Society Name** and **Agent Name** exactly as in admin file.
-- Registration is stored locally and used to validate imported files.
-
-## 7. Import (TXT / Excel)
-Location: **Sync → Import Daily Data** or Login screen.
-
-Rules:
-- The file must match the registered Society Name + Agent Name.
-- Can import multiple lots using **+** (Add Account Type) without wiping existing lots.
-- Replace mode clears old data first.
-
-### 7.1 TXT Format (example)
-```
-PRIYADARSHANI MAHILA CREDIT SOCIETY, karanja                 Date :- 19-01-2026
-Agent Wise Client Account Report
-Account Head:DAILY PIGMY ACCOUNT  007 Agent Name:Mr.GOURAV ... 00100005
-----------------------------------------------------------------------
-Ac No     Name                                       Balance
-----------------------------------------------------------------------
-00700034  TUKARAM BHABUTRAO GAVALI                    100.00
-```
-
-### 7.2 Excel Format (example)
-Excel must include these columns (case-insensitive):
-- `Ac No`
-- `Name`
-- `Amount` or `Balance`
-
-## 8. Account Types (Lots)
-Each account type is treated as a **lot** based on:
-- `account_head_code` (preferred) OR `account_type`
-- `frequency` (DAILY / WEEKLY / MONTHLY)
-
-In the app:
-- **Collect** screen shows active lot and lets you switch.
-- **Accounts** screen always filters by active lot.
-- Export is generated **per lot**, one file each.
-
-## 9. Collect Money
-1. Go to **Collect**.
-2. Enter last digits of account number.
-3. Open a client and enter received amount.
-4. Save the entry. Toast confirms success.
-5. Use **Edit** from toast to correct mistakes.
-
-## 10. Export & Clear
-Location: **Sync → Export & Clear Data**
-
-Behavior:
-- Export creates separate files per lot.
-- After export, only those exported lots are cleared.
-- Other lots remain intact.
-
-Formats:
-- Excel (`.xlsx`) default
-- Text (`.txt`) optional
-
-## 11. History & Reports
-Location: **Reports**
-
-- Calendar highlights dates with export files.
-- Tap a file to view full details inside the app.
-- Files are stored locally and can be shared again anytime.
-
-## 12. Theme & UI
-- Automatic light/dark theme based on device settings.
-- Status bar adapts to theme.
-- Skeleton loaders + custom popups for a smoother UX.
-
-## 13. Data Storage
-All data stored locally in SQLite:
-- Societies
-- Agents
-- Accounts
-- Collections
-- Export history
-- App meta (registration + active lot)
-
-## 14. File Naming & Locations
-Exports are saved to:
-- `Document/exports` (inside app sandbox)
-
-File name format:
-```
-IAMC_<societyCode>_<agentCode>_<lotCode>_<YYYYMMDD>_<HHMMSS>Z.xlsx
-```
-
-## 15. Validation Rules
-- Society Name and Agent Name must match registered values.
-- Matching is case-insensitive and ignores common titles (Mr/Mrs/etc).
-- Import fails if mismatched.
-
-## 16. Security Notes
-- PIN is fixed to `0000` for imported agents (simplified flow).
-- No external network calls; everything is local file + SQLite.
-
-## 17. Testing
+Useful scripts:
 ```bash
 npm run typecheck
 npm test
 ```
 
-## 18. Project Structure
-- `src/screens/auth` – login and splash
-- `src/screens/collections` – collect, account detail, reports
-- `src/screens/accounts` – client list
-- `src/screens/sync` – import/export
-- `src/db` – SQLite schema + repository
-- `src/sync` – import/export parsing logic
-- `src/components` – shared UI components
-- `src/theme` – theme system
-- `sample-data` – example import files
+## 3. Core Functionality
 
-## 19. Troubleshooting
-- **Wrong file error**: Registration names must match (case-insensitive).
-- **Import stuck**: Use **Refresh Session** on Import screen.
-- **History empty**: Ensure export files exist in `Document/exports`.
-- **Dark mode not switching**: Rebuild app after changing `app.json`.
+### 3.1 Authentication and Profiles
+- Sign-in by `Society Code + Agent Code + PIN`.
+- Import flow creates/updates society and agent records automatically.
+- Imported agents get default PIN `0000` (`DEFAULT_AGENT_PIN`).
+- Session persists across app restarts using SecureStore.
+- Multi-profile switching is supported from the in-app society switcher.
 
-## 20. FAQs
-**Q: Can one agent handle Daily + Monthly in the same day?**
-Yes. Import daily file first, then use **+** to add another account type.
+### 3.2 Master Data Import (TXT and Excel)
+- Import screen accepts `.txt`, `.xls`, `.xlsx`.
+- Two import modes:
+- `replace` mode: replaces lots from the incoming file for that society/agent.
+- `add` mode: adds a new lot without removing existing lots.
+- Add mode blocks duplicate lot imports (same lot key already loaded).
+- Successful import auto-signs in with default PIN and sets active lot to the imported lot.
 
-**Q: Does export clear all data?**
-No. It clears only the exported account type (lot). Other lots remain.
+### 3.3 Lot-Based Account Model
+- Accounts are grouped by lot key:
+- `<account_head_code>_<account_type>_<frequency>` when head code exists.
+- `<account_type>_<frequency>` when head code is missing.
+- Active lot filter is saved per society and reused on next launch.
+- Collect and Accounts screens respect the active lot filter.
 
-**Q: Can I edit a wrong collection?**
-Yes. Use the **Edit** option after saving.
+### 3.4 Collection Workflow
+- Quick search by last digits of account number.
+- Open account detail and save collection for today.
+- Same account/day updates existing record instead of duplicating.
+- Optional remarks supported per collection.
+- Shows projected balance while entering amount:
+- Loan account: balance decreases.
+- Non-loan account: balance increases.
+- One-tap edit available after save.
 
----
+### 3.5 Accounts and Daily Progress
+- Accounts screen:
+- Search by client name or account number.
+- Filter by `All`, `Collected`, `Remaining` for current day.
+- Collect screen daily summary:
+- Collected count, remaining count, total amount.
+- Progress bar and today’s entries.
 
-This README reflects the current app flow and data rules.
+### 3.6 Export and Clearing
+- Exports only `PENDING` collections.
+- Export files are generated per lot (separate file for each account type lot).
+- Supported export formats:
+- Excel (`.xlsx`) default
+- Text (`.txt`) optional
+- File naming format:
+- `IAMC_<societyCode>_<agentCode>_<lotCode>_<YYYYMMDD>_<HHMMSS>Z.<ext>`
+- After export, matching collections are marked `EXPORTED` and export rows are logged.
+- Sync screen then clears local account + collection data only for exported lots.
+- If exactly one file is exported and share is available, share sheet opens automatically.
+
+### 3.7 Reports and History
+- Calendar-based history filter by date.
+- Reads history from both:
+- `exports` DB records
+- files present in app document `exports` directory
+- Export details viewer parses `.xlsx`, `.xls`, `.txt`, and `.json` export files.
+- Can share any selected export file again from Reports screen.
+
+### 3.8 Theme and UI
+- Light/dark theme via custom theme provider.
+- Tab navigation: `Collect`, `Accounts`, `Reports`, `Sync`.
+- Reusable UI components: cards, popups, skeleton loaders, section headers, lot selector.
+
+## 4. Import Format Support
+
+### 4.1 TXT Parser (`parseAgentReportText`)
+- Reads society line and report date (`DD-MM-YYYY`).
+- Parses `Account Head` and `Agent Name` (same line or separate line).
+- Parses account rows with account number, name, balance.
+- Handles comma-separated numeric amounts (`5,100.00`).
+- Normalizes:
+- Frequency: `DAILY/WEEKLY/MONTHLY`
+- Account type: `PIGMY/LOAN/SAVINGS`
+
+### 4.2 Excel Parser (`parseAgentReportExcel`)
+- Auto-selects first non-`Abstract` sheet.
+- Detects society, date, agent, account head metadata.
+- Detects header row with `Ac No`.
+- Reads amount from installment/collection/fallback columns.
+- Reads balance when available.
+- Handles mixed spacing and flexible labels (`Agent Name`, `Date`, etc.).
+
+## 5. Data Storage
+- Local SQLite database: `info-agent-money-collection.db`
+- Main tables:
+- `societies`
+- `agents`
+- `accounts`
+- `collections`
+- `exports`
+- `app_meta`
+- Session key stored in SecureStore: `iamc_session_v1`
+- Active lot and registration metadata stored in `app_meta`.
+
+## 6. Validation and Safety Rules
+- Import upsert is isolated by:
+- society
+- agent
+- account number
+- lot key
+- Replace imports delete only matching society/agent lots from incoming report.
+- Export validation blocks inconsistent data:
+- same account number + same lot with different client names
+- same account number mapped to different client names across lots
+- Clear-by-lot logic supports both head-code and no-head-code lots without cross-lot deletion.
+
+## 7. Test Coverage (Current Suite)
+- `tests/parseAgentReport.test.ts`
+- TXT parsing, long names, comma amounts, separate agent line, missing head code.
+- `tests/parseAgentReportExcel.test.ts`
+- Excel parsing of metadata and rows.
+- `tests/importParsedReport.test.ts`
+- Upsert scoping and replace-mode lot clearing behavior.
+- `tests/importIsolationScenarios.test.ts`
+- Isolation across lots and societies; update-in-place within same lot.
+- `tests/exportValidation.test.ts`
+- Export conflict detection rules.
+- `tests/exportPending.test.ts`
+- Per-lot export generation, naming, mark-exported calls, share behavior.
+- `tests/clearClientDataByLots.test.ts`
+- Lot-scoped delete behavior and no-op on empty lot list.
+
+All tests currently pass with `npm test`.
+
+## 8. Project Structure
+- `src/appState` - app/session state provider
+- `src/db` - SQLite setup, migrations, repository
+- `src/sync` - import/export parsers and workflows
+- `src/screens` - app screens by feature area
+- `src/components` - reusable UI components
+- `src/theme` - theme provider and tokens
+- `src/utils` - shared helpers (money, dates, lots, errors)
+- `tests` - Vitest unit tests
+
+## 9. Known Notes
+- Import works without mandatory pre-registration; registration metadata is optional in current flow.
+- Register screen UI exists, but PIN set/update flow is not wired to repository update yet.
+- No network API calls are used; operations are local DB + local files.
