@@ -115,7 +115,7 @@ const makeStyles = (theme: Theme) =>
     },
     fullImage: {
       width: '100%',
-      height: screenHeight * 0.4,
+      height: screenHeight * 0.2,
     },
     contentContainer: {
       flex: 1,
