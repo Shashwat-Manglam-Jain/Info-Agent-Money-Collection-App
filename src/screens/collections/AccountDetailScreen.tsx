@@ -90,8 +90,10 @@ export function AccountDetailScreen({ route, navigation }: Props) {
 
   const projectedBalance = useMemo(() => {
     if (!account) return null;
-    const amount = rupeesToPaise(Number(amountText));
-    if (!Number.isFinite(amount) || amount <= 0) return null;
+    const rawAmount = amountText.trim();
+    if (!rawAmount) return null;
+    const amount = rupeesToPaise(Number(rawAmount));
+    if (!Number.isFinite(amount) || amount < 0) return null;
     if (account.accountType === 'LOAN') return account.balancePaise - amount;
     return account.balancePaise + amount;
   }, [account, amountText]);
@@ -124,8 +126,13 @@ export function AccountDetailScreen({ route, navigation }: Props) {
 
   const save = async () => {
     if (!db || !society || !agent || !account) return;
-    const amount = rupeesToPaise(Number(amountText));
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const rawAmount = amountText.trim();
+    if (!rawAmount) {
+      showMessage('Invalid amount', 'Enter a valid received amount.');
+      return;
+    }
+    const amount = rupeesToPaise(Number(rawAmount));
+    if (!Number.isFinite(amount) || amount < 0) {
       showMessage('Invalid amount', 'Enter a valid received amount.');
       return;
     }
