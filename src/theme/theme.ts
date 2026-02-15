@@ -18,6 +18,7 @@ export type Theme = {
     danger: string;
     success: string;
     primarySoft: string;
+    textSecondary: string;
   };
   radii: {
     sm: number;
@@ -63,6 +64,7 @@ export const lightTheme: Theme = {
     danger: '#dc2626',
     success: '#16a34a',
     primarySoft: '#e8f0ff',
+    textSecondary: '#8093ab'
   },
   radii: {
     sm: 10,
@@ -108,6 +110,8 @@ export const darkTheme: Theme = {
     danger: '#f98585',
     success: '#43d9a1',
     primarySoft: 'rgba(105,184,255,0.24)',
+     textSecondary: '#51769c'
+
   },
   radii: {
     sm: 10,

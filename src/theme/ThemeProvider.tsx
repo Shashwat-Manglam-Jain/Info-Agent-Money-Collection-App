@@ -14,14 +14,14 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: lightTheme,
-  mode: 'light',
+  mode: 'dark',
   setMode: () => {},
   toggleTheme: () => {},
 });
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const scheme = useColorScheme();
-  const [mode, setMode] = useState<ThemeMode>('light');
+  const [mode, setMode] = useState<ThemeMode>('dark');
 
   const resolvedMode = mode === 'system' ? (scheme === 'dark' ? 'dark' : 'light') : mode;
   const theme = useMemo(() => (resolvedMode === 'dark' ? darkTheme : lightTheme), [resolvedMode]);
