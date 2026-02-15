@@ -1,29 +1,40 @@
-import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCallback, useMemo, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import { useApp } from '../../appState/AppProvider';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { PopupModal, type PopupAction } from '../../components/PopupModal';
-import { SocietySwitcherCard } from '../../components/SocietySwitcherCard';
-import { Skeleton } from '../../components/Skeleton';
-import { ScrollScreen } from '../../components/Screen';
-import { SectionHeader } from '../../components/SectionHeader';
-import { clearClientDataByLots, getAccountCount, getPendingExportCounts } from '../../db/repo';
-import type { ImportCategory, RootStackParamList } from '../../navigation/types';
-import { exportPendingAndShare, type ExportCategory, type ExportFormat } from '../../sync/exportPending';
-import { getErrorMessage } from '../../utils/errors';
-import { useTheme } from '../../theme';
-import type { Theme } from '../../theme';
+import { useApp } from "../../appState/AppProvider";
+import { Button } from "../../components/Button";
+import { Card } from "../../components/Card";
+import { PopupModal, type PopupAction } from "../../components/PopupModal";
+import { SocietySwitcherCard } from "../../components/SocietySwitcherCard";
+import { Skeleton } from "../../components/Skeleton";
+import { ScrollScreen } from "../../components/Screen";
+import { SectionHeader } from "../../components/SectionHeader";
+import {
+  clearClientDataByLots,
+  getAccountCount,
+  getPendingExportCounts,
+} from "../../db/repo";
+import type {
+  ImportCategory,
+  RootStackParamList,
+} from "../../navigation/types";
+import {
+  exportPendingAndShare,
+  type ExportCategory,
+  type ExportFormat,
+} from "../../sync/exportPending";
+import { getErrorMessage } from "../../utils/errors";
+import { useTheme } from "../../theme";
+import type { Theme } from "../../theme";
 
-const exportCategories: ExportCategory[] = ['daily', 'monthly', 'loan'];
+const exportCategories: ExportCategory[] = ["daily", "monthly", "loan"];
 
 function categoryLabel(category: ExportCategory | ImportCategory): string {
-  if (category === 'daily') return 'Daily';
-  if (category === 'monthly') return 'Monthly';
-  return 'Loan';
+  if (category === "daily") return "Daily";
+  if (category === "monthly") return "Monthly";
+  return "Loan";
 }
 
 export function SyncScreen() {
@@ -36,16 +47,25 @@ export function SyncScreen() {
   const [pendingMonthly, setPendingMonthly] = useState(0);
   const [pendingLoan, setPendingLoan] = useState(0);
   const [accountCount, setAccountCount] = useState(0);
-  const [exportingCategory, setExportingCategory] = useState<ExportCategory | null>(null);
+  const [exportingCategory, setExportingCategory] =
+    useState<ExportCategory | null>(null);
   const [loading, setLoading] = useState(true);
-  const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
+  const [popup, setPopup] = useState<{
+    title: string;
+    message?: string;
+    actions?: PopupAction[];
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     if (!db || !agent || !society) return;
     setLoading(true);
     try {
       const [pending, count] = await Promise.all([
-        getPendingExportCounts({ db, societyId: society.id, agentId: agent.id }),
+        getPendingExportCounts({
+          db,
+          societyId: society.id,
+          agentId: agent.id,
+        }),
         getAccountCount(db, society.id, agent.id),
       ]);
       setPendingCollections(pending.collections);
@@ -61,19 +81,18 @@ export function SyncScreen() {
   useFocusEffect(
     useCallback(() => {
       void refresh();
-    }, [refresh])
+    }, [refresh]),
   );
 
   const fileNameFromUri = (uri: string): string => {
-    const parts = uri.split('/');
+    const parts = uri.split("/");
     return parts[parts.length - 1] || uri;
   };
-  this is the 
   const closePopup = () => setPopup(null);
 
   const pendingCountFor = (category: ExportCategory): number => {
-    if (category === 'daily') return pendingDaily;
-    if (category === 'monthly') return pendingMonthly;
+    if (category === "daily") return pendingDaily;
+    if (category === "monthly") return pendingMonthly;
     return pendingLoan;
   };
 
@@ -81,12 +100,18 @@ export function SyncScreen() {
     if (!db || !society || !agent) return;
     setExportingCategory(category);
     try {
-      const result = await exportPendingAndShare({ db, society, agent, format, category });
+      const result = await exportPendingAndShare({
+        db,
+        society,
+        agent,
+        format,
+        category,
+      });
       if (!result) {
         setPopup({
-          title: 'Nothing to export',
+          title: "Nothing to export",
           message: `No pending ${categoryLabel(category)} collections.`,
-          actions: [{ label: 'OK', onPress: closePopup }],
+          actions: [{ label: "OK", onPress: closePopup }],
         });
         return;
       }
@@ -94,30 +119,28 @@ export function SyncScreen() {
         db,
         society.id,
         agent.id,
-        result.files.map((file) => filyuiuu98yh8gygu8u8u78t78u08y8ui876uy98u8u09t6yh]
-        
-        
-        
-        
-        e.lot)
+        result.files.map((file) => file.lot),
       );
 
       const filesInfo = result.files
-        .map((f) => `${f.lotCode ? `Lot ${f.lotCode}` : f.lotName}: ${fileNameFromUri(f.fileUri)}`)
-        .join('\n');
+        .map(
+          (f) =>
+            `${f.lotCode ? `Lot ${f.lotCode}` : f.lotName}: ${fileNameFromUri(f.fileUri)}`,
+        )
+        .join("\n");
 
       await refresh();
 
       setPopup({
         title: `${categoryLabel(category)} Exported`,
         message: `Files: ${result.files.length}\n${filesInfo}\n\nClient data cleared for exported account types.`,
-        actions: [{ label: 'OK', onPress: closePopup }],
+        actions: [{ label: "OK", onPress: closePopup }],
       });
     } catch (e: unknown) {
       setPopup({
-        title: 'Export failed',
+        title: "Export failed",
         message: getErrorMessage(e),
-        actions: [{ label: 'OK', onPress: closePopup }],
+        actions: [{ label: "OK", onPress: closePopup }],
       });
     } finally {
       setExportingCategory(null);
@@ -129,9 +152,9 @@ export function SyncScreen() {
     const count = pendingCountFor(category);
     if (count === 0) {
       setPopup({
-        title: 'Nothing to export',
+        title: "Nothing to export",
         message: `No pending ${categoryLabel(category)} collections.`,
-        actions: [{ label: 'OK', onPress: closePopup }],
+        actions: [{ label: "OK", onPress: closePopup }],
       });
       return;
     }
@@ -139,28 +162,28 @@ export function SyncScreen() {
       title: `${categoryLabel(category)} Export Format`,
       message: `Choose format for ${categoryLabel(category)} export (${count} collections).`,
       actions: [
-        { label: 'Cancel', variant: 'ghost', onPress: closePopup },
+        { label: "Cancel", variant: "ghost", onPress: closePopup },
         {
-          label: 'Excel (default)',
+          label: "Excel (default)",
           onPress: () => {
             closePopup();
-            void doExport('xlsx', category);
+            void doExport("xlsx", category);
           },
         },
         {
-          label: 'Text (TXT)',
-          variant: 'secondary',
+          label: "Text (TXT)",
+          variant: "secondary",
           onPress: () => {
             closePopup();
-            void doExport('txt', category);
+            void doExport("txt", category);
           },
         },
         {
-          label: 'PDF',
-          variant: 'secondary',
+          label: "PDF",
+          variant: "secondary",
           onPress: () => {
             closePopup();
-            void doExport('pdf', category);
+            void doExport("pdf", category);
           },
         },
       ],
@@ -220,11 +243,15 @@ export function SyncScreen() {
             <Button
               title={
                 exportingCategory === category
-                  ? 'Exporting…'
+                  ? "Exporting…"
                   : `Export ${categoryLabel(category)} (${pendingCountFor(category)})`
               }
               variant="secondary"
-              disabled={loading || !!exportingCategory || pendingCountFor(category) === 0}
+              disabled={
+                loading ||
+                !!exportingCategory ||
+                pendingCountFor(category) === 0
+              }
               iconLeft="share-outline"
               onPress={() => openExportPopup(category)}
             />
@@ -243,7 +270,12 @@ export function SyncScreen() {
           <Button
             title="Import Daily File (TXT/Excel)"
             iconLeft="cloud-download-outline"
-            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'daily' })}
+            onPress={() =>
+              nav.navigate("ImportMasterData", {
+                mode: "replace",
+                category: "daily",
+              })
+            }
           />
         </View>
         <View style={styles.rowGap}>
@@ -251,7 +283,12 @@ export function SyncScreen() {
             title="Import Monthly File (TXT/Excel)"
             variant="secondary"
             iconLeft="cloud-download-outline"
-            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'monthly' })}
+            onPress={() =>
+              nav.navigate("ImportMasterData", {
+                mode: "replace",
+                category: "monthly",
+              })
+            }
           />
         </View>
         <View style={styles.rowGap}>
@@ -259,7 +296,12 @@ export function SyncScreen() {
             title="Import Loan File (TXT/Excel)"
             variant="secondary"
             iconLeft="cloud-download-outline"
-            onPress={() => nav.navigate('ImportMasterData', { mode: 'replace', category: 'loan' })}
+            onPress={() =>
+              nav.navigate("ImportMasterData", {
+                mode: "replace",
+                category: "loan",
+              })
+            }
           />
         </View>
       </Card>
@@ -270,16 +312,21 @@ export function SyncScreen() {
             title="Go to Login / Register"
             variant="secondary"
             iconLeft="log-in-outline"
-            onPress={() => nav.navigate('Login')}
+            onPress={() => nav.navigate("Login")}
           />
         ) : null}
         <View style={{ height: accountCount === 0 ? 10 : 0 }} />
-        <Button title="Logout" variant="danger" iconLeft="log-out-outline" onPress={signOut} />
+        <Button
+          title="Logout"
+          variant="danger"
+          iconLeft="log-out-outline"
+          onPress={signOut}
+        />
       </Card>
 
       <PopupModal
         visible={!!popup}
-        title={popup?.title ?? ''}
+        title={popup?.title ?? ""}
         message={popup?.message}
         actions={popup?.actions}
         onDismiss={closePopup}
@@ -290,9 +337,9 @@ export function SyncScreen() {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    pendingGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    pendingGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     pendingTile: {
-      width: '48%',
+      width: "48%",
       minHeight: 76,
       borderRadius: theme.radii.sm + 2,
       borderWidth: 1,
@@ -300,11 +347,11 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surfaceTint,
       paddingHorizontal: 10,
       paddingVertical: 10,
-      justifyContent: 'center',
+      justifyContent: "center",
       gap: 3,
     },
     pendingTileWide: {
-      width: '100%',
+      width: "100%",
       minHeight: 76,
       borderRadius: theme.radii.sm + 2,
       borderWidth: 1,
@@ -312,20 +359,20 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surfaceTint,
       paddingHorizontal: 10,
       paddingVertical: 10,
-      justifyContent: 'center',
+      justifyContent: "center",
       gap: 3,
     },
     pendingValue: {
       fontSize: 16,
-      fontWeight: '900',
+      fontWeight: "900",
       color: theme.colors.text,
     },
     pendingLabel: {
       fontSize: 11,
-      fontWeight: '700',
+      fontWeight: "700",
       color: theme.colors.muted,
       letterSpacing: 0.35,
-      textTransform: 'uppercase',
+      textTransform: "uppercase",
     },
     rowGap: { marginTop: 10 },
   });
