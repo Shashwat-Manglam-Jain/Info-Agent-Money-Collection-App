@@ -20,9 +20,9 @@ export function LoginScreen() {
   const { signIn } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [societyCode, setSocietyCode] = useState("DEMO");
-  const [agentCode, setAgentCode] = useState("AG001");
-  const [pin, setPin] = useState("1234");
+  const [societyCode, setSocietyCode] = useState("");
+  const [agentCode, setAgentCode] = useState("");
+  const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
 
   const handleSignIn = async () => {
@@ -50,7 +50,7 @@ export function LoginScreen() {
       <Card style={styles.formCard}>
         <View style={styles.formFields}>
           <TextField
-            label="Company Code"
+            label="Society Code"
             value={societyCode}
             onChangeText={(value) => setSocietyCode(value.toUpperCase())}
             placeholder="e.g. S001"
