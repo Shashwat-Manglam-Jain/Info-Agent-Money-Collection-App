@@ -68,7 +68,7 @@ export function SyncScreen() {
     const parts = uri.split('/');
     return parts[parts.length - 1] || uri;
   };
-
+  this is the 
   const closePopup = () => setPopup(null);
 
   const pendingCountFor = (category: ExportCategory): number => {
@@ -94,7 +94,12 @@ export function SyncScreen() {
         db,
         society.id,
         agent.id,
-        result.files.map((file) => file.lot)
+        result.files.map((file) => filyuiuu98yh8gygu8u8u78t78u08y8ui876uy98u8u09t6yh]
+        
+        
+        
+        
+        e.lot)
       );
 
       const filesInfo = result.files

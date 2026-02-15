@@ -6,5 +6,5 @@ export const images = {
   logo: require('../../assets/logo.png'),
   uiLogo: require('../../assets/login.png'),
 
-  Logo: require('../../assets/login2.png'),
+  Logo: require('../../assets/newlogin.png'),
 } as const;
