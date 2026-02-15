@@ -125,25 +125,98 @@ async function sha256(input: string): Promise<string> {
 
 export async function authenticateAgent(
   db: SQLiteDatabase,
-  societyCode: string,
+  societyCode: string | null | undefined,
   agentCode: string,
   pin: string
 ): Promise<{ society: Society; agent: Agent } | null> {
-  const societyRow = await db.getFirstAsync<any>('SELECT * FROM societies WHERE code = ?;', societyCode);
-  if (!societyRow) return null;
+  const normalizedSocietyCode = societyCode?.trim();
 
-  const agentRow = await db.getFirstAsync<any>(
-    'SELECT * FROM agents WHERE society_id = ? AND code = ? AND is_active = 1;',
-    societyRow.id,
+  if (normalizedSocietyCode) {
+    const rows = await db.getAllAsync<any>(
+      `SELECT a.*, s.id AS society_id, s.code AS society_code, s.name AS society_name
+       FROM agents a
+       JOIN societies s ON s.id = a.society_id
+       WHERE s.code = ? AND a.code = ? AND a.is_active = 1
+       LIMIT 1;`,
+      normalizedSocietyCode,
+      agentCode
+    );
+    const row = rows[0];
+    if (!row) return null;
+
+    const expectedHash = row.pin_hash as string;
+    const inputHash = await sha256(`${row.society_id}:${pin}`);
+    if (inputHash !== expectedHash) return null;
+
+    return {
+      society: { id: row.society_id, code: row.society_code, name: row.society_name },
+      agent: mapAgent(row),
+    };
+  }
+
+  const candidates = await db.getAllAsync<any>(
+    `SELECT a.*, s.id AS society_id, s.code AS society_code, s.name AS society_name
+     FROM agents a
+     JOIN societies s ON s.id = a.society_id
+     WHERE a.code = ? AND a.is_active = 1;`,
     agentCode
   );
-  if (!agentRow) return null;
 
-  const expectedHash = agentRow.pin_hash as string;
-  const inputHash = await sha256(`${societyRow.id}:${pin}`);
-  if (inputHash !== expectedHash) return null;
+  let matched: { society: Society; agent: Agent } | null = null;
+  for (const row of candidates) {
+    const expectedHash = row.pin_hash as string;
+    const inputHash = await sha256(`${row.society_id}:${pin}`);
+    if (inputHash !== expectedHash) continue;
 
-  return { society: mapSociety(societyRow), agent: mapAgent(agentRow) };
+    if (matched) {
+      return null;
+    }
+
+    matched = {
+      society: { id: row.society_id, code: row.society_code, name: row.society_name },
+      agent: mapAgent(row),
+    };
+  }
+
+  return matched;
+}
+
+export type UpdateAgentPinResult = 'updated' | 'agent_not_found' | 'ambiguous_agent_code';
+
+export async function updateAgentPinByCode(
+  db: SQLiteDatabase,
+  params: { societyCode?: string | null; agentCode: string; pin: string }
+): Promise<UpdateAgentPinResult> {
+  const normalizedAgentCode = params.agentCode.trim();
+  if (!normalizedAgentCode) return 'agent_not_found';
+
+  const normalizedSocietyCode = params.societyCode?.trim();
+  const rows = normalizedSocietyCode
+    ? await db.getAllAsync<any>(
+        `SELECT a.*, s.code as society_code, s.name as society_name
+         FROM agents a
+         JOIN societies s ON s.id = a.society_id
+         WHERE s.code = ? AND a.code = ? AND a.is_active = 1
+         LIMIT 2;`,
+        normalizedSocietyCode,
+        normalizedAgentCode
+      )
+    : await db.getAllAsync<any>(
+        `SELECT a.*, s.code as society_code, s.name as society_name
+         FROM agents a
+         JOIN societies s ON s.id = a.society_id
+         WHERE a.code = ? AND a.is_active = 1
+         LIMIT 2;`,
+        normalizedAgentCode
+      );
+
+  if (rows.length === 0) return 'agent_not_found';
+  if (rows.length > 1) return 'ambiguous_agent_code';
+
+  const target = rows[0];
+  const pinHash = await sha256(`${target.society_id}:${params.pin}`);
+  await db.runAsync('UPDATE agents SET pin_hash = ? WHERE id = ?;', pinHash, target.id);
+  return 'updated';
 }
 
 

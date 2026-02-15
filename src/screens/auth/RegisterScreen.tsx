@@ -12,6 +12,7 @@ import type { RootStackParamList } from "../../navigation/types";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 import { images } from "../../assets/images";
+import { updateAgentPinByCode } from "../../db/repo";
 
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -46,8 +47,30 @@ export function RegisterScreen() {
 
     setBusy(true);
     try {
-      // TODO: Persist PIN once registration endpoint is finalized.
-      nav.goBack();
+      const result = await updateAgentPinByCode(db, {
+        agentCode: trimmedAgentCode,
+        pin,
+      });
+
+      if (result === "updated") {
+        Alert.alert("PIN saved", "You can now sign in using Agent Code and PIN.", [
+          { text: "OK", onPress: () => nav.goBack() },
+        ]);
+        return;
+      }
+
+      if (result === "ambiguous_agent_code") {
+        Alert.alert(
+          "Agent code not unique",
+          "This agent code exists in multiple societies. Import your file first for automatic sign in, then try again."
+        );
+        return;
+      }
+
+      Alert.alert(
+        "Agent not found",
+        "No active agent found for this code. Import your data file first, then create PIN."
+      );
     } finally {
       setBusy(false);
     }

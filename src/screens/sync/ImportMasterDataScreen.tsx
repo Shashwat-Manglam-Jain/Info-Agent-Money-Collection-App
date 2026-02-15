@@ -108,6 +108,14 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
 
   const closePopup = () => setPopup(null);
 
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.reset({ index: 0, routes: [{ name: agent ? 'MainTabs' : 'Login' }] });
+  };
+
   const showMessage = (title: string, message?: string, actions?: PopupAction[]) => {
     setPopup({
       title,
@@ -305,7 +313,7 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
             title="Back"
             variant="ghost"
             iconLeft="arrow-back-outline"
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
             disabled={busy}
           />
         </View>

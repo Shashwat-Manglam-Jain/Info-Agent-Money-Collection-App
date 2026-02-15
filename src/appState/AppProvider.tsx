@@ -14,7 +14,7 @@ type AppContextValue = {
   activeLot: ActiveLot | null;
   setActiveLot: (lot: ActiveLot | null) => Promise<void>;
   switchProfile: (params: { societyId: string; agentId: string }) => Promise<boolean>;
-  signIn: (params: { societyCode: string; agentCode: string; pin: string }) => Promise<boolean>;
+  signIn: (params: { societyCode?: string; agentCode: string; pin: string }) => Promise<boolean>;
   signOut: () => Promise<void>;
 };
 
@@ -99,7 +99,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       },
       signIn: async ({ societyCode, agentCode, pin }) => {
         if (!db) return false;
-        const auth = await authenticateAgent(db, societyCode.trim(), agentCode.trim(), pin);
+        const auth = await authenticateAgent(db, societyCode, agentCode.trim(), pin);
         if (!auth) return false;
         setSociety(auth.society);
         setAgent(auth.agent);
