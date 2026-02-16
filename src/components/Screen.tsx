@@ -12,7 +12,7 @@ export function Screen({ children }: PropsWithChildren) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left','right']}>
       <BackgroundLayer />
       <View style={styles.container}>
         <View style={styles.screenContentWrap}>
@@ -28,7 +28,7 @@ export function ScrollScreen({ children }: PropsWithChildren) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['left','right']}>
       <BackgroundLayer />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.scrollContentWrap}>
@@ -65,17 +65,19 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.appBg,
     },
     container: {
-      flex: 1,
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
-    },
+  flex: 1,
+  paddingHorizontal: 8,   // 👈 side spacing only
+  paddingTop: 6,           // 👈 reduce top gap
+  paddingBottom: 0,        // 👈 REMOVE bottom gap
+},
+
+scrollContent: {
+  flexGrow: 1,
+  paddingHorizontal: 8,
+  paddingTop: 6,
+  paddingBottom: 0,        // 👈 REMOVE bottom gap
+},
+
     screenContentWrap: {
       flex: 1,
       width: '100%',
@@ -95,8 +97,9 @@ const makeStyles = (theme: Theme) =>
       gap: 12,
     },
     footer: {
-      marginTop: theme.spacing.md,
-      textAlign: 'center',
+ marginTop: 8,
+  marginBottom: 4,
+        textAlign: 'center',
       color: theme.colors.muted,
       fontSize: 11,
       fontWeight: '600',

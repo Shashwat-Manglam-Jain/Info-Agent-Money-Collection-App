@@ -66,7 +66,7 @@ export function SocietySwitcherCard() {
     <Card>
       <SectionHeader
         title="Company & Agent"
-        subtitle="Current working profile"
+        subtitle="Current  profile"
         icon="business-outline"
         right={(
           <View style={styles.actionsRow}>
@@ -146,12 +146,12 @@ const makeStyles = (theme: Theme) =>
     },
     switchText: { fontSize: 12, fontWeight: '800', color: theme.colors.primary, letterSpacing: 0.2 },
     identityCard: {
-      marginTop: 12,
+      marginTop: 5,
       borderWidth: 1,
       borderColor: theme.colors.border,
       borderRadius: theme.radii.sm + 2,
       backgroundColor: theme.colors.surfaceTint,
-      paddingHorizontal: 11,
+      paddingHorizontal: 9,
       paddingVertical: 10,
       flexDirection: 'row',
       alignItems: 'center',

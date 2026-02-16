@@ -5,6 +5,7 @@ import { ThemedStatusBar } from './src/components/ThemedStatusBar';
 import { ThemeProvider } from './src/theme';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
+
 export default function App() {
   return (
     <SafeAreaProvider>
