@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { DocumentPickerAsset } from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -8,6 +8,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useApp } from '../../appState/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { Icon } from '../../components/Icon';
 import { LoadingModal } from '../../components/LoadingModal';
 import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
@@ -23,23 +24,6 @@ import type { Theme } from '../../theme';
 import { lotKeyFromParts, lotLabel } from '../../utils/lots';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImportMasterData'>;
-
-const TXT_SAMPLE = `Society Name                         Date :- 19-01-2026
-Agent Wise Client Account Report
-Account Head:DAILY PIGMY ACCOUNT  007 Agent Name:Mr.GOURAV ... 00100005
-----------------------------------------------------------------------
-Ac No      Name                                Balance
-----------------------------------------------------------------------
-00700034   TUKARAM BHABUTRAO GAVALI             100.00
-00700076   TULSHIDAS GULABCHAND SHARMA           50.00`;
-
-const EXCEL_SAMPLE = `Society Name
-Agent AC No : 100001
-Agent Name : Mr.PRAKASH VITHOBA BIRGADE
-Account Head : 7  DAILY PIGMY ACCOUNT 007
-Date : 19/01/2026
-Ac No     Name                          Installment Amount  Balance
-00707313  YASH PRUTHVIRAJ WATKAR         100                 16000`;
 
 function categoryLabel(category: ImportCategory): string {
   if (category === 'daily') return 'Daily';
@@ -58,6 +42,57 @@ function matchesCategory(account: ParsedAccount, category: ImportCategory): bool
   if (category === 'loan') return account.accountType === 'LOAN';
   if (category === 'daily') return account.accountType !== 'LOAN' && account.frequency === 'DAILY';
   return account.accountType !== 'LOAN' && account.frequency === 'MONTHLY';
+}
+
+function stripDataUrlPrefix(value: string): string {
+  const trimmed = value.trim();
+  const commaIndex = trimmed.indexOf(',');
+  return commaIndex >= 0 ? trimmed.slice(commaIndex + 1) : trimmed;
+}
+
+function decodeBase64Text(value: string): string {
+  const rawBase64 = stripDataUrlPrefix(value);
+  if (typeof atob !== 'function') throw new Error('Browser base64 decoder unavailable');
+  const binary = atob(rawBase64);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function readBlobAsBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read selected file'));
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Failed to read selected file'));
+        return;
+      }
+      resolve(stripDataUrlPrefix(reader.result));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function readAssetText(asset: DocumentPickerAsset): Promise<string> {
+  if (Platform.OS !== 'web') {
+    return new File(asset.uri).text();
+  }
+  if (asset.file) return asset.file.text();
+  if (asset.base64) return decodeBase64Text(asset.base64);
+  const response = await fetch(asset.uri);
+  if (!response.ok) throw new Error('Failed to read selected file');
+  return response.text();
+}
+
+async function readAssetBase64(asset: DocumentPickerAsset): Promise<string> {
+  if (Platform.OS !== 'web') {
+    return new File(asset.uri).base64();
+  }
+  if (asset.base64) return stripDataUrlPrefix(asset.base64);
+  if (asset.file) return readBlobAsBase64(asset.file);
+  const response = await fetch(asset.uri);
+  if (!response.ok) throw new Error('Failed to read selected file');
+  return readBlobAsBase64(await response.blob());
 }
 
 export function ImportMasterDataScreen({ navigation, route }: Props) {
@@ -136,6 +171,7 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ],
         copyToCacheDirectory: true,
+        base64: Platform.OS === 'web',
         multiple: false,
       });
 
@@ -145,8 +181,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
 
       const isExcel = isExcelAsset(asset);
       const report = isExcel
-        ? parseAgentReportExcel(await new File(asset.uri).base64())
-        : parseAgentReportText(await new File(asset.uri).text());
+        ? parseAgentReportExcel(await readAssetBase64(asset))
+        : parseAgentReportText(await readAssetText(asset));
 
       const firstAccount = report.accounts[0];
       if (category && !matchesCategory(firstAccount, category)) {
@@ -232,8 +268,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
             isAddMode
               ? `Add a new ${categoryText.toLowerCase()} file. Existing data stays. PIN is set to 0000.`
               : category
-                ? `Import only ${categoryText.toLowerCase()} file data. Pending collections are kept until export; exported old data is replaced. PIN is set to 0000.`
-                : 'Import agent report data shared by your admin. Pending collections are kept until export; exported old data is replaced. PIN is set to 0000.'
+                ? `Import only ${categoryText.toLowerCase()} file data. Existing data is kept, and collections are removed only after export. PIN is set to 0000.`
+                : 'Import agent report data shared by your admin. Existing data is kept, and collections are removed only after export. PIN is set to 0000.'
           }
           icon="cloud-download-outline"
         />
@@ -245,41 +281,77 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       </Card>
 
       <Card>
-        <SectionHeader title="Expected format" icon="code-slash-outline" subtitle="Swipe left/right to view full sample lines." />
+        <SectionHeader
+          title="Quick Import Guide"
+          icon="sparkles-outline"
+          subtitle="No fixed sample needed. The app auto-detects structure."
+        />
 
-        <View style={styles.sampleCard}>
-          <View style={styles.sampleHead}>
-            <Text style={styles.sampleTag}>TXT</Text>
-            <Text style={styles.sampleTitle}>Daily report sample</Text>
+        <View style={styles.guideHero}>
+          <View style={styles.guideHeroIconWrap}>
+            <Icon name="cloud-upload-outline" size={18} color={theme.colors.primary} />
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator
-            contentContainerStyle={styles.sampleScrollContent}
-          >
-            <Text style={styles.schema} allowFontScaling={false}>
-              {TXT_SAMPLE}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.guideHeroTitle}>
+              {isAddMode ? `Add ${categoryText} records safely` : `Import ${categoryText} records in one step`}
             </Text>
-          </ScrollView>
+            <Text style={styles.guideHeroText}>
+              Pick a TXT/XLS/XLSX report and we automatically read headers, rows, and extra spaces.
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.sampleCard}>
-          <View style={styles.sampleHead}>
-            <Text style={styles.sampleTag}>Excel</Text>
-            <Text style={styles.sampleTitle}>Sheet rows sample</Text>
+        <View style={styles.formatRow}>
+          <View style={styles.formatChip}>
+            <Icon name="document-text-outline" size={14} color={theme.colors.primary} />
+            <Text style={styles.formatChipText}>TXT</Text>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator
-            contentContainerStyle={styles.sampleScrollContent}
-          >
-            <Text style={styles.schema} allowFontScaling={false}>
-              {EXCEL_SAMPLE}
-            </Text>
-          </ScrollView>
+          <View style={styles.formatChip}>
+            <Icon name="grid-outline" size={14} color={theme.colors.primary} />
+            <Text style={styles.formatChipText}>XLS</Text>
+          </View>
+          <View style={styles.formatChip}>
+            <Icon name="grid-outline" size={14} color={theme.colors.primary} />
+            <Text style={styles.formatChipText}>XLSX</Text>
+          </View>
         </View>
 
-        <Text style={styles.schemaNote}>Columns auto-align in export. Import accepts extra spaces.</Text>
+        <View style={styles.stepsList}>
+          <View style={styles.stepRow}>
+            <View style={styles.stepBadge}>
+              <Text style={styles.stepBadgeText}>1</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stepTitle}>Choose file</Text>
+              <Text style={styles.stepText}>Select report shared by your admin from device storage.</Text>
+            </View>
+          </View>
+          <View style={styles.stepRow}>
+            <View style={styles.stepBadge}>
+              <Text style={styles.stepBadgeText}>2</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stepTitle}>Auto-parse</Text>
+              <Text style={styles.stepText}>The app validates account type and imports rows automatically.</Text>
+            </View>
+          </View>
+          <View style={styles.stepRow}>
+            <View style={styles.stepBadge}>
+              <Text style={styles.stepBadgeText}>3</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.stepTitle}>Start collecting</Text>
+              <Text style={styles.stepText}>Open dashboard immediately after successful import.</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.tipBox}>
+          <Icon name="information-circle-outline" size={16} color={theme.colors.primary} />
+          <Text style={styles.tipText}>
+            Import only {category ? `${categoryText.toLowerCase()} ` : ''}account files on this screen for best results.
+          </Text>
+        </View>
       </Card>
 
       <Card>
@@ -333,50 +405,111 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    sampleCard: {
+    guideHero: {
       marginTop: 12,
-      borderRadius: theme.radii.sm + 2,
+      flexDirection: 'row',
+      gap: 10,
+      padding: 12,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    guideHeroIconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: theme.radii.pill,
+      backgroundColor: theme.colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    guideHeroTitle: {
+      fontSize: 13,
+      fontWeight: '900',
+      color: theme.colors.text,
+    },
+    guideHeroText: {
+      marginTop: 3,
+      fontSize: 12,
+      color: theme.colors.muted,
+      lineHeight: 17,
+    },
+    formatRow: {
+      marginTop: 10,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    formatChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: theme.radii.pill,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
-      overflow: 'hidden',
     },
-    sampleHead: {
-      paddingHorizontal: 11,
-      paddingVertical: 9,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: theme.colors.primarySoft,
-    },
-    sampleTag: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: theme.radii.pill,
+    formatChipText: {
       fontSize: 11,
       fontWeight: '900',
       color: theme.colors.primary,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      overflow: 'hidden',
       letterSpacing: 0.2,
     },
-    sampleTitle: { fontSize: 12, fontWeight: '800', color: theme.colors.text },
-    sampleScrollContent: { padding: 10 },
-    schema: {
+    stepsList: {
+      marginTop: 12,
+      padding: 12,
+      borderRadius: theme.radii.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+      gap: 10,
+    },
+    stepRow: {
+      flexDirection: 'row',
+      gap: 10,
+      alignItems: 'flex-start',
+    },
+    stepBadge: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+    },
+    stepBadgeText: {
       fontSize: 12,
-      lineHeight: 16,
+      fontWeight: '900',
+      color: theme.colors.textOnDark,
+      lineHeight: 12,
+    },
+    stepTitle: {
+      fontSize: 12,
+      fontWeight: '900',
       color: theme.colors.text,
-      fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    },
+    stepText: {
+      marginTop: 2,
+      fontSize: 12,
+      lineHeight: 17,
+      color: theme.colors.muted,
+    },
+    tipBox: {
+      marginTop: 10,
+      paddingVertical: 9,
+      paddingHorizontal: 10,
       borderRadius: theme.radii.sm + 2,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      padding: 10,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: theme.colors.primarySoft,
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
     },
-    schemaNote: { marginTop: 9, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
+    tipText: { flex: 1, fontSize: 12, color: theme.colors.text, lineHeight: 17, fontWeight: '700' },
     registered: { marginTop: 9, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
   });

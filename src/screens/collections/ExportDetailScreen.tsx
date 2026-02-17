@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { File } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -9,6 +9,7 @@ import { useApp } from '../../appState/AppProvider';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
+import { Icon } from '../../components/Icon';
 import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
@@ -28,7 +29,6 @@ type ExportView = {
   agentName: string;
   agentCode: string;
   lotLabel: string | null;
-  rawContent: string | null;
   collections: Array<{
     id: string;
     accountNo: string;
@@ -46,7 +46,7 @@ function formatTimestamp(iso: string | null): string {
 
 function parseAgentLine(line: string): { agentCode: string; agentName: string } {
   const raw = line.replace(/^Agent:\s*/i, '').trim();
-  const match = raw.match(/(\d{4,})\s*-?\s*(.+)$/);
+  const match = raw.match(/(\d+)\s*-?\s*(.+)$/);
   if (match) {
     return { agentCode: match[1].trim(), agentName: match[2].trim() };
   }
@@ -61,11 +61,11 @@ function parseExportFileName(name: string): {
   lotCode: string | null;
   extension: string | null;
 } {
-  const match = name.match(/IAMC_([^_]+)_([^_]+)_(.+)_(\d{8})_(\d{6})Z\.(json|xlsx|xls|txt|pdf)$/i);
+  const match = name.match(/IAMC_([^_]+)_([^_]+)_(.+)_(\d{8})_(\d{6})(?:_(\d{3}))?Z\.(json|xlsx|xls|txt|pdf)$/i);
   if (!match) {
     return { societyCode: null, agentCode: null, dateISO: null, timeISO: null, lotCode: null, extension: null };
   }
-  const [, societyCode, agentCode, lotCode, datePart, timePart, extension] = match;
+  const [, societyCode, agentCode, lotCode, datePart, timePart, , extension] = match;
   const yyyy = datePart.slice(0, 4);
   const mm = datePart.slice(4, 6);
   const dd = datePart.slice(6, 8);
@@ -82,7 +82,6 @@ function buildDefaults(fileType: ExportView['fileType']): ExportView {
     agentName: '—',
     agentCode: '—',
     lotLabel: null,
-    rawContent: null,
     collections: [],
   };
 }
@@ -107,7 +106,6 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
     view.societyName = payload.society?.name ?? '—';
     view.agentName = payload.agent?.name ?? '—';
     view.agentCode = payload.agent?.code ?? '—';
-    view.rawContent = JSON.stringify(payload, null, 2);
     view.collections = Array.isArray(payload.collections)
       ? payload.collections.map((c: any, idx: number) => ({
           id: c.id ?? `${fileName}-${idx}`,
@@ -127,7 +125,6 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: false, blankrows: false });
     const view = buildDefaults('EXCEL');
-    view.rawContent = rows.map((row) => (row || []).map((cell) => String(cell ?? '')).join('\t')).join('\n');
     let headerIndex = -1;
 
     for (let i = 0; i < rows.length; i += 1) {
@@ -176,7 +173,6 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
     const text = await new File(fileUri).text();
     const lines = text.split(/\r?\n/).filter((line) => line.trim());
     const view = buildDefaults('TXT');
-    view.rawContent = text;
     let headerIndex = -1;
 
     for (let i = 0; i < lines.length; i += 1) {
@@ -229,7 +225,6 @@ export function ExportDetailScreen({ navigation, route }: Props) {
   const { fileUri, fileName, exportedAtISO, lotCode, collectionsCount } = route.params;
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<ExportView | null>(null);
-  const [showAllContent, setShowAllContent] = useState(false);
   const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
 
   const closePopup = () => setPopup(null);
@@ -245,7 +240,6 @@ export function ExportDetailScreen({ navigation, route }: Props) {
     navigation.setOptions({ title: 'Export Details' });
     (async () => {
       setLoading(true);
-      setShowAllContent(false);
       try {
         const parsed = await parseExportFile(fileUri, fileName);
         const normalized: ExportView = {
@@ -322,6 +316,10 @@ export function ExportDetailScreen({ navigation, route }: Props) {
   const fileType = detail?.fileType ?? (fileMeta.extension?.toUpperCase() as ExportView['fileType'] | undefined) ?? 'UNKNOWN';
   const collectionsTotal = detail?.collections.length ?? 0;
   const displayCollections = collectionsTotal > 0 ? collectionsTotal : (collectionsCount ?? 0);
+  const displayTime = formatTimestamp(detail?.exportedAt ?? exportedAtISO ?? null);
+  const displaySociety = detail?.societyName ?? society?.name ?? '—';
+  const displayAgent = `${detail?.agentCode ?? agent?.code ?? '—'} • ${detail?.agentName ?? agent?.name ?? '—'}`;
+  const displayLot = detail?.lotLabel ?? lotCode ?? '—';
 
   return (
     <ScrollScreen>
@@ -332,24 +330,45 @@ export function ExportDetailScreen({ navigation, route }: Props) {
           icon={fileType === 'PDF' ? 'document-outline' : 'document-text-outline'}
         />
         <View style={{ height: 10 }} />
-        <Text style={styles.kv}>Format: {fileType}</Text>
-        <Text style={styles.kv}>Exported at: {formatTimestamp(detail?.exportedAt ?? exportedAtISO ?? null)}</Text>
-        <Text style={styles.kv}>Society: {detail?.societyName ?? society?.name ?? '—'}</Text>
-        <Text style={styles.kv}>Agent: {(detail?.agentCode ?? agent?.code ?? '—')} • {(detail?.agentName ?? agent?.name ?? '—')}</Text>
-        <Text style={styles.kv}>Lot: {detail?.lotLabel ?? lotCode ?? '—'}</Text>
-        <Text style={styles.kv}>Collections: {displayCollections}</Text>
+        <View style={styles.metaGrid}>
+          <View style={styles.metaTile}>
+            <Text style={styles.metaLabel}>Format</Text>
+            <Text style={styles.metaValue}>{fileType}</Text>
+          </View>
+          <View style={styles.metaTile}>
+            <Text style={styles.metaLabel}>Collections</Text>
+            <Text style={styles.metaValue}>{displayCollections}</Text>
+          </View>
+        </View>
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <Icon name="time-outline" size={14} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.infoText}>Exported at: {displayTime}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <Icon name="business-outline" size={14} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.infoText}>Society: {displaySociety}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <Icon name="person-outline" size={14} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.infoText}>Agent: {displayAgent}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <View style={styles.infoIconWrap}>
+            <Icon name="layers-outline" size={14} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.infoText}>Lot: {displayLot}</Text>
+        </View>
         <View style={{ height: 12 }} />
-        <Button title="Share Export File" variant="secondary" iconLeft="share-outline" onPress={shareFile} />
-        <View style={{ height: 8 }} />
-        <Button
-          title={showAllContent ? 'Hide Full Content' : 'View Full Content'}
-          variant="secondary"
-          iconLeft={showAllContent ? 'eye-off-outline' : 'eye-outline'}
-          onPress={() => setShowAllContent((prev) => !prev)}
-          disabled={!detail?.rawContent}
-        />
-        <View style={{ height: 8 }} />
-        <Button title="Delete File" variant="danger" iconLeft="trash-outline" onPress={deleteFile} />
+        <View style={styles.actionWrap}>
+          <Button title="Share Export File" variant="secondary" iconLeft="share-outline" onPress={shareFile} />
+          <Button title="Delete File" variant="danger" iconLeft="trash-outline" onPress={deleteFile} />
+        </View>
       </Card>
 
       <Card>
@@ -387,30 +406,6 @@ export function ExportDetailScreen({ navigation, route }: Props) {
         )}
       </Card>
 
-      {showAllContent ? (
-        <Card>
-          <SectionHeader
-            title="Full Content"
-            subtitle="Complete file text shown below."
-            icon="document-text-outline"
-          />
-          <View style={{ height: 10 }} />
-          {detail?.rawContent ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator>
-              <Text selectable style={styles.rawText}>
-                {detail.rawContent}
-              </Text>
-            </ScrollView>
-          ) : (
-            <EmptyState
-              icon="document-outline"
-              title="Full content unavailable"
-              message="Use Share to open this file in another app."
-            />
-          )}
-        </Card>
-      ) : null}
-
       <PopupModal
         visible={!!popup}
         title={popup?.title ?? ''}
@@ -424,22 +419,34 @@ export function ExportDetailScreen({ navigation, route }: Props) {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    kv: { marginTop: 7, fontSize: 13, color: theme.colors.text, lineHeight: 18 },
     sep: { height: 1, backgroundColor: theme.colors.border },
+    metaGrid: { flexDirection: 'row', gap: 10 },
+    metaTile: {
+      flex: 1,
+      paddingVertical: 9,
+      paddingHorizontal: 10,
+      borderRadius: theme.radii.sm + 2,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    metaLabel: { fontSize: 11, color: theme.colors.muted, fontWeight: '700' },
+    metaValue: { marginTop: 1, fontSize: 15, color: theme.colors.text, fontWeight: '900' },
+    infoRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 },
+    infoIconWrap: {
+      width: 24,
+      height: 24,
+      borderRadius: theme.radii.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    infoText: { flex: 1, fontSize: 13, color: theme.colors.text, lineHeight: 18, fontWeight: '700' },
+    actionWrap: { gap: 8 },
     row: { paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
     rowTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.text, lineHeight: 18 },
     rowSub: { fontSize: 12, color: theme.colors.muted, marginTop: 2, lineHeight: 17 },
     rowAmount: { fontSize: 14, fontWeight: '900', color: theme.colors.text },
-    rawText: {
-      minWidth: '100%',
-      fontSize: 12,
-      lineHeight: 17,
-      color: theme.colors.text,
-      padding: 10,
-      borderRadius: theme.radii.sm + 2,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surfaceTint,
-      fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-    },
   });

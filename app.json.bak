@@ -9,8 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
+       "image": "./assets/splash.png",  
+      "resizeMode": "contain",        
       "backgroundColor": "#0A0F1E"
     },
     "ios": {
@@ -49,9 +49,11 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "ce2deb38-4b45-4f7c-a01a-82efcfab5bb8"
+        "projectId": "3e7abecc-b71c-4d57-8424-666153ab89c7"
       }
     },
-    "owner": "shashwat100k"
+    "owner": "jay123y"
   }
 }
+
+

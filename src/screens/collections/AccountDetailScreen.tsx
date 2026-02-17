@@ -11,8 +11,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { TextField } from '../../components/TextField';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Account, CollectionEntry } from '../../models/types';
-import { getAccountById, getCollectionForAccountDate, upsertCollectionForToday } from '../../db/repo';
-import { toISODate } from '../../utils/dates';
+import { getAccountById, getPendingCollectionForAccount, upsertCollectionForToday } from '../../db/repo';
 import { formatINR, paiseToRupees, rupeesToPaise } from '../../utils/money';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
@@ -31,7 +30,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [account, setAccount] = useState<Account | null>(null);
   const [loadingAccount, setLoadingAccount] = useState(true);
-  const [todayEntry, setTodayEntry] = useState<CollectionEntry | null>(null);
+  const [pendingEntry, setPendingEntry] = useState<CollectionEntry | null>(null);
   const [amountText, setAmountText] = useState('');
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
@@ -39,12 +38,10 @@ export function AccountDetailScreen({ route, navigation }: Props) {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
 
-  const today = useMemo(() => toISODate(new Date()), []);
-
   const load = useCallback(async () => {
     if (!db || !agent || !society) {
       setAccount(null);
-      setTodayEntry(null);
+      setPendingEntry(null);
       setLoadingAccount(false);
       return;
     }
@@ -58,25 +55,24 @@ export function AccountDetailScreen({ route, navigation }: Props) {
       });
       setAccount(a);
       if (!a) {
-        setTodayEntry(null);
+        setPendingEntry(null);
         setRemarks('');
         return;
       }
       navigation.setOptions({ title: a.accountNo });
       setAmountText((prev) => (prev ? prev : a.installmentPaise > 0 ? paiseToRupeesText(a.installmentPaise) : ''));
-      const e = await getCollectionForAccountDate({
+      const e = await getPendingCollectionForAccount({
         db,
         societyId: society.id,
         agentId: agent.id,
         accountId: a.id,
-        collectionDate: today,
       });
-      setTodayEntry(e);
+      setPendingEntry(e);
       setRemarks(e?.remarks ?? '');
     } finally {
       setLoadingAccount(false);
     }
-  }, [accountId, agent, db, navigation, society, today]);
+  }, [accountId, agent, db, navigation, society]);
 
   useEffect(() => {
     void load();
@@ -107,12 +103,12 @@ export function AccountDetailScreen({ route, navigation }: Props) {
   }, []);
 
   const applyEdit = useCallback(() => {
-    if (todayEntry) {
-      setAmountText(paiseToRupeesText(todayEntry.collectedPaise));
-      setRemarks(todayEntry.remarks ?? '');
+    if (pendingEntry) {
+      setAmountText(paiseToRupeesText(pendingEntry.collectedPaise));
+      setRemarks(pendingEntry.remarks ?? '');
     }
     setToastMessage(null);
-  }, [todayEntry]);
+  }, [pendingEntry]);
 
   const closePopup = () => setPopup(null);
 
@@ -146,7 +142,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
         amountPaise: amount,
         remarks: remarks.trim() ? remarks.trim() : null,
       });
-      setTodayEntry(entry);
+      setPendingEntry(entry);
       setAmountText(paiseToRupeesText(entry.collectedPaise));
       setRemarks(entry.remarks ?? '');
       showToast(`Successfully paid ${formatINR(entry.collectedPaise)}.`);
@@ -221,17 +217,17 @@ export function AccountDetailScreen({ route, navigation }: Props) {
 
       <Card>
         <SectionHeader
-          title={`Collect (${today})`}
+          title="Collect (Pending until export)"
           subtitle={
-            todayEntry
-              ? `Already saved today: ${formatINR(todayEntry.collectedPaise)} (${todayEntry.collectedAt})`
-              : 'No entry saved today for this account.'
+            pendingEntry
+              ? `Saved and pending export: ${formatINR(pendingEntry.collectedPaise)} (${pendingEntry.collectionDate})`
+              : 'No pending entry for this account.'
           }
           icon="cash-outline"
         />
-        {todayEntry ? (
+        {pendingEntry ? (
           <View style={styles.savedRow}>
-            <Text style={styles.savedText}>Saved: {formatINR(todayEntry.collectedPaise)}</Text>
+            <Text style={styles.savedText}>Saved: {formatINR(pendingEntry.collectedPaise)}</Text>
             <Pressable onPress={applyEdit} style={styles.editChip}>
               <Text style={styles.editChipText}>Edit</Text>
             </Pressable>
@@ -260,7 +256,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
         ) : null}
         <View style={{ height: 12 }} />
         <Button
-          title={saving ? 'Saving…' : todayEntry ? 'Update Collection' : 'Save Collection'}
+          title={saving ? 'Saving…' : pendingEntry ? 'Update Collection' : 'Save Collection'}
           iconLeft="save-outline"
           onPress={save}
           disabled={saving}

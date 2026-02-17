@@ -14,12 +14,11 @@ import type { Account } from "../../models/types";
 import {
   listAccountLots,
   listAccounts,
-  listCollectionsForDate,
+  listPendingCollections,
 } from "../../db/repo";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 import { formatINR } from "../../utils/money";
-import { toISODate } from "../../utils/dates";
 import { lotKeyFromParts, lotLabel } from "../../utils/lots";
 import { Keyboard, TouchableWithoutFeedback } from "react-native";
 
@@ -35,7 +34,6 @@ export function AccountsScreen() {
     "ALL",
   );
   const [collectedIds, setCollectedIds] = useState<Set<string>>(new Set());
-  const today = useMemo(() => toISODate(new Date()), []);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,18 +42,17 @@ export function AccountsScreen() {
         if (!db || !society || !agent) return;
         setLoading(true);
         try {
-          const [rows, collected, lotRows] = await Promise.all([
+          const [rows, pendingCollections, lotRows] = await Promise.all([
             listAccounts(db, society.id, agent.id, 2000),
-            listCollectionsForDate({
+            listPendingCollections({
               db,
               societyId: society.id,
               agentId: agent.id,
-              collectionDate: today,
             }),
             listAccountLots(db, society.id, agent.id),
           ]);
           setAccounts(rows);
-          setCollectedIds(new Set(collected.map((c) => c.accountId)));
+          setCollectedIds(new Set(pendingCollections.map((c) => c.accountId)));
           if (activeLot && !lotRows.find((lot) => lot.key === activeLot.key)) {
             await setActiveLot(null);
           }
@@ -63,7 +60,7 @@ export function AccountsScreen() {
           setLoading(false);
         }
       })();
-    }, [agent, db, society, today, activeLot, setActiveLot]),
+    }, [agent, db, society, activeLot, setActiveLot]),
   );
 
   const baseAccounts = useMemo(() => {
@@ -115,7 +112,7 @@ export function AccountsScreen() {
             <View style={{ height: 10 }} />
             <SectionHeader
               title="Filter"
-              subtitle={`${today} • ${activeLot ? lotLabel(activeLot) : "All account types"}`}
+              subtitle={`Pending until export • ${activeLot ? lotLabel(activeLot) : "All account types"}`}
               icon="filter-outline"
             />
             <View style={{ height: 10 }} />

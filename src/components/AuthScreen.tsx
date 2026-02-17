@@ -118,7 +118,9 @@ const makeStyles = (theme: Theme) =>
       width: 220,
       height: 220,
       borderRadius: 110,
-      backgroundColor: "rgba(109,186,255,0.20)",
+      backgroundColor: theme.isDark
+        ? "rgba(99,102,241,0.24)"
+        : "rgba(109,186,255,0.20)",
     },
     glowB: {
       position: "absolute",
@@ -127,7 +129,9 @@ const makeStyles = (theme: Theme) =>
       width: 250,
       height: 250,
       borderRadius: 125,
-      backgroundColor: "rgba(59,217,239,0.17)",
+      backgroundColor: theme.isDark
+        ? "rgba(139,92,246,0.20)"
+        : "rgba(59,217,239,0.17)",
     },
     container: {
       flexGrow: 1,

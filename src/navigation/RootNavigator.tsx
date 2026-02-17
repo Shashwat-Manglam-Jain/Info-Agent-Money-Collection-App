@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   DarkTheme,
@@ -10,6 +11,7 @@ import { useApp } from "../appState/AppProvider";
 import { useTheme, useThemeController } from "../theme";
 import type { MainTabParamList, RootStackParamList } from "./types";
 import { Icon } from "../components/Icon";
+import { PopupModal, type PopupAction } from "../components/PopupModal";
 import { AppSplashScreen } from "../screens/auth/AppSplashScreen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -48,9 +50,76 @@ const getExportDetailScreen = () =>
 const getImportMasterDataScreen = () =>
   require("../screens/sync/ImportMasterDataScreen").ImportMasterDataScreen;
 
+function ThemeSelectorButton({ marginRight }: { marginRight: number }) {
+  const theme = useTheme();
+  const { mode, setMode, options } = useThemeController();
+  const [open, setOpen] = useState(false);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        trigger: {
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          paddingHorizontal: 10,
+          paddingVertical: 6,
+          borderRadius: theme.radii.pill,
+          borderWidth: 1,
+          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surfaceTint,
+        },
+        triggerText: {
+          fontSize: 12,
+          fontWeight: "800",
+          color: theme.colors.primary,
+        },
+      }),
+    [theme]
+  );
+
+  const selectedOption = useMemo(
+    () => options.find((option) => option.mode === mode) ?? options[0],
+    [mode, options]
+  );
+
+  const actions = useMemo<PopupAction[]>(
+    () =>
+      options.map((option) => ({
+        label: mode === option.mode ? `${option.label} (Selected)` : option.label,
+        variant: mode === option.mode ? "primary" : "secondary",
+        onPress: () => {
+          setMode(option.mode);
+          setOpen(false);
+        },
+      })),
+    [mode, options, setMode]
+  );
+
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={[styles.trigger, { marginRight }]}
+        accessibilityRole="button"
+        accessibilityLabel="Select theme"
+      >
+        <Icon name={selectedOption.icon} size={16} color={theme.colors.primary} />
+        <Text style={styles.triggerText}>{selectedOption.label}</Text>
+      </Pressable>
+      <PopupModal
+        visible={open}
+        title="Choose Theme"
+        message="Select the app appearance style."
+        actions={actions}
+        onDismiss={() => setOpen(false)}
+      />
+    </>
+  );
+}
+
 function MainTabs() {
   const theme = useTheme();
-  const { toggleTheme } = useThemeController();
   const insets = useSafeAreaInsets();
   const tabBarBottomInset =
     Platform.OS === "android" && insets.bottom === 0 ? 24 : insets.bottom;
@@ -66,23 +135,6 @@ function MainTabs() {
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.primarySoft,
-    },
-    headerRight: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginRight: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: theme.radii.pill,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surfaceTint,
-    },
-    headerRightText: {
-      fontSize: 12,
-      fontWeight: "800",
-      color: theme.colors.primary,
     },
   });
 
@@ -116,23 +168,7 @@ function MainTabs() {
               />
             </View>
           ),
-          headerRight: () => (
-            <Pressable
-              onPress={toggleTheme}
-              style={styles.headerRight}
-              accessibilityRole="button"
-              accessibilityLabel="Toggle theme"
-            >
-              <Icon
-                name={theme.isDark ? "sunny-outline" : "moon-outline"}
-                size={16}
-                color={theme.colors.primary}
-              />
-              <Text style={styles.headerRightText}>
-                {theme.isDark ? "Light" : "Dark"}
-              </Text>
-            </Pressable>
-          ),
+          headerRight: () => <ThemeSelectorButton marginRight={8} />,
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.muted,
           tabBarStyle: {
@@ -140,7 +176,7 @@ function MainTabs() {
             borderTopColor: theme.colors.border,
             borderTopWidth: 1,
 
-            height: 64 + tabBarBottomInset,
+            height: 45+ tabBarBottomInset,
             paddingTop: 4,
             paddingBottom: 8 + tabBarBottomInset,
 
@@ -186,7 +222,6 @@ function MainTabs() {
 export function RootNavigator() {
   const { ready, agent } = useApp();
   const theme = useTheme();
-  const { toggleTheme } = useThemeController();
 
   if (!ready) return <AppSplashScreen />;
 
@@ -214,40 +249,7 @@ export function RootNavigator() {
           headerTitleAlign: "left",
           headerTitleStyle: { fontWeight: "900", fontSize: 18 },
           headerTintColor: theme.colors.text,
-          headerRight: () => (
-            <Pressable
-              onPress={toggleTheme}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                marginRight: 6,
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                borderRadius: theme.radii.pill,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                backgroundColor: theme.colors.surfaceTint,
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Toggle theme"
-            >
-              <Icon
-                name={theme.isDark ? "sunny-outline" : "moon-outline"}
-                size={16}
-                color={theme.colors.primary}
-              />
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "800",
-                  color: theme.colors.primary,
-                }}
-              >
-                {theme.isDark ? "Light" : "Dark"}
-              </Text>
-            </Pressable>
-          ),
+          headerRight: () => <ThemeSelectorButton marginRight={6} />,
         }}
       >
         {agent ? (

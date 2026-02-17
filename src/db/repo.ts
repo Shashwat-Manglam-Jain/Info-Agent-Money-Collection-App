@@ -495,6 +495,30 @@ export async function upsertCollectionForToday(params: {
   const collectedAt = nowISO();
   const collectionDate = toISODate(new Date());
 
+  const existingPending = await db.getFirstAsync<any>(
+    `SELECT * FROM collections
+     WHERE society_id = ? AND agent_id = ? AND account_id = ? AND status = 'PENDING'
+     ORDER BY collected_at DESC
+     LIMIT 1;`,
+    societyId,
+    agentId,
+    account.id
+  );
+
+  if (existingPending) {
+    await db.runAsync(
+      `UPDATE collections
+       SET collected_paise = ?, collected_at = ?, remarks = ?
+       WHERE id = ?;`,
+      amountPaise,
+      collectedAt,
+      remarks ?? null,
+      existingPending.id
+    );
+    const updated = await db.getFirstAsync<any>('SELECT * FROM collections WHERE id = ?;', existingPending.id);
+    return mapCollection(updated);
+  }
+
   const existing = await db.getFirstAsync<any>(
     `SELECT * FROM collections
      WHERE society_id = ? AND agent_id = ? AND account_id = ? AND collection_date = ?;`,
@@ -627,6 +651,24 @@ export async function getCollectionForAccountDate(params: {
     params.agentId,
     params.accountId,
     params.collectionDate
+  );
+  return row ? mapCollection(row) : null;
+}
+
+export async function getPendingCollectionForAccount(params: {
+  db: SQLiteDatabase;
+  societyId: string;
+  agentId: string;
+  accountId: string;
+}): Promise<CollectionEntry | null> {
+  const row = await params.db.getFirstAsync<any>(
+    `SELECT * FROM collections
+     WHERE society_id = ? AND agent_id = ? AND account_id = ? AND status = 'PENDING'
+     ORDER BY collected_at DESC
+     LIMIT 1;`,
+    params.societyId,
+    params.agentId,
+    params.accountId
   );
   return row ? mapCollection(row) : null;
 }

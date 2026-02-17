@@ -19,9 +19,13 @@ npm start
 
 Useful scripts:
 ```bash
+npm run start:lan
+npm run android
 npm run typecheck
 npm test
 ```
+- `npm start` uses Expo tunnel mode for reliable Android QR scan/open.
+- `npm run start:lan` can be used when phone and dev machine are on the same Wi-Fi.
 
 ## 3. Core Functionality
 
@@ -165,3 +169,8 @@ All tests currently pass with `npm test`.
 - Import works without mandatory pre-registration; registration metadata is optional in current flow.
 - Register screen UI exists, but PIN set/update flow is not wired to repository update yet.
 - No network API calls are used; operations are local DB + local files.
+
+## 10. Android QR Troubleshooting
+- Update Expo Go to the latest version on Android.
+- Run `npm start` (tunnel mode) and scan the new QR from Expo Go.
+- If already running Metro, stop it and restart with cache clear: `npx expo start --tunnel --clear`.

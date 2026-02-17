@@ -39,7 +39,7 @@ function categoryLabel(category: ExportCategory | ImportCategory): string {
 
 export function SyncScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { db, society, agent, signOut } = useApp();
+  const { db, society, agent, activeLot, signOut } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [pendingCollections, setPendingCollections] = useState(0);
@@ -90,6 +90,14 @@ export function SyncScreen() {
   };
   const closePopup = () => setPopup(null);
 
+  const selectedExportCategory = useMemo<ExportCategory | null>(() => {
+    if (!activeLot) return null;
+    if (activeLot.accountType === "LOAN") return "loan";
+    if (activeLot.frequency === "DAILY") return "daily";
+    if (activeLot.frequency === "MONTHLY") return "monthly";
+    return null;
+  }, [activeLot]);
+
   const pendingCountFor = (category: ExportCategory): number => {
     if (category === "daily") return pendingDaily;
     if (category === "monthly") return pendingMonthly;
@@ -128,12 +136,15 @@ export function SyncScreen() {
             `${f.lotCode ? `Lot ${f.lotCode}` : f.lotName}: ${fileNameFromUri(f.fileUri)}`,
         )
         .join("\n");
+      const shareNote = result.shareError
+        ? `\n\nShare skipped: ${result.shareError}\nSaved copy is available in Reports.`
+        : "";
 
       await refresh();
 
       setPopup({
         title: `${categoryLabel(category)} Exported`,
-        message: `Files: ${result.files.length}\n${filesInfo}\n\nClient data cleared for exported account types.`,
+        message: `Files: ${result.files.length}\n${filesInfo}\n\nClient data deleted for exported account types.\nSaved copy kept in export history.${shareNote}`,
         actions: [{ label: "OK", onPress: closePopup }],
       });
     } catch (e: unknown) {
@@ -234,7 +245,11 @@ export function SyncScreen() {
       <Card>
         <SectionHeader
           title="Export Separately"
-          subtitle="Export Daily, Monthly, and Loan files separately."
+          subtitle={
+            selectedExportCategory
+              ? `Selected in Collect: ${categoryLabel(selectedExportCategory)} (highlighted below).`
+              : "Export Daily, Monthly, and Loan files separately."
+          }
           icon="share-outline"
         />
         <View style={{ height: 10 }} />
@@ -246,13 +261,13 @@ export function SyncScreen() {
                   ? "Exporting…"
                   : `Export ${categoryLabel(category)} (${pendingCountFor(category)})`
               }
-              variant="secondary"
+              variant={selectedExportCategory === category ? "primary" : "secondary"}
               disabled={
                 loading ||
                 !!exportingCategory ||
                 pendingCountFor(category) === 0
               }
-              iconLeft="share-outline"
+              iconLeft={selectedExportCategory === category ? "checkmark-circle" : "share-outline"}
               onPress={() => openExportPopup(category)}
             />
           </View>

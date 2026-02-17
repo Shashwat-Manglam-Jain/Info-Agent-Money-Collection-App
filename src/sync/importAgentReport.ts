@@ -31,6 +31,7 @@ export async function importParsedReport(
   report: ParsedReport,
   options: { replaceExisting?: boolean } = {}
 ): Promise<ImportResult> {
+  const replaceExisting = options.replaceExisting !== false;
   const societyCode = report.societyCode;
   const societyName = report.societyName.trim();
 
@@ -76,101 +77,6 @@ export async function importParsedReport(
       );
     }
 
-    if (options.replaceExisting !== false) {
-      const lots = new Map<
-        string,
-        { lotKey: string; accountHeadCode: string | null; accountType: string; frequency: string }
-      >();
-      for (const account of report.accounts) {
-        const accountHeadCode = normalizeHeadCode(account.accountHeadCode);
-        const lotKey = lotKeyFromParts(accountHeadCode, account.accountType, account.frequency);
-        if (!lots.has(lotKey)) {
-          lots.set(lotKey, {
-            lotKey,
-            accountHeadCode,
-            accountType: account.accountType,
-            frequency: account.frequency,
-          });
-        }
-      }
-
-      for (const lot of lots.values()) {
-        if (lot.accountHeadCode) {
-          await db.runAsync(
-            `DELETE FROM collections
-             WHERE society_id = ? AND agent_id = ?
-               AND status = 'EXPORTED'
-               AND account_id IN (
-                 SELECT id FROM accounts
-                 WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
-                   AND account_type = ? AND frequency = ? AND account_head_code = ?
-               );`,
-            societyId,
-            agentId,
-            societyId,
-            agentId,
-            lot.lotKey,
-            lot.accountType,
-            lot.frequency,
-            lot.accountHeadCode
-          );
-          await db.runAsync(
-            `DELETE FROM accounts
-             WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
-               AND account_type = ? AND frequency = ? AND account_head_code = ?
-               AND id NOT IN (
-                 SELECT account_id FROM collections
-                 WHERE society_id = ? AND agent_id = ? AND status = 'PENDING'
-               );`,
-            societyId,
-            agentId,
-            lot.lotKey,
-            lot.accountType,
-            lot.frequency,
-            lot.accountHeadCode,
-            societyId,
-            agentId
-          );
-        } else {
-          await db.runAsync(
-            `DELETE FROM collections
-             WHERE society_id = ? AND agent_id = ?
-               AND status = 'EXPORTED'
-               AND account_id IN (
-                 SELECT id FROM accounts
-                 WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
-                   AND account_type = ? AND frequency = ?
-                   AND (account_head_code IS NULL OR account_head_code = '')
-               );`,
-            societyId,
-            agentId,
-            societyId,
-            agentId,
-            lot.lotKey,
-            lot.accountType,
-            lot.frequency
-          );
-          await db.runAsync(
-            `DELETE FROM accounts
-             WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
-               AND account_type = ? AND frequency = ?
-               AND (account_head_code IS NULL OR account_head_code = '')
-               AND id NOT IN (
-                 SELECT account_id FROM collections
-                 WHERE society_id = ? AND agent_id = ? AND status = 'PENDING'
-               );`,
-            societyId,
-            agentId,
-            lot.lotKey,
-            lot.accountType,
-            lot.frequency,
-            societyId,
-            agentId
-          );
-        }
-      }
-    }
-
     for (const a of report.accounts) {
       const lastTxnAt = report.reportDateISO ?? null;
       const balancePaise = rupeesToPaise(a.balanceRupees ?? 0);
@@ -187,6 +93,7 @@ export async function importParsedReport(
       );
 
       if (existing) {
+        if (!replaceExisting) continue;
         await db.runAsync(
           `UPDATE accounts
            SET client_name = ?, account_lot_key = ?, account_type = ?, frequency = ?,
