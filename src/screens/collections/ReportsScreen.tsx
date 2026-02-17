@@ -482,7 +482,7 @@ export function ReportsScreen() {
           subtitle="Select a date to view export history."
           icon="calendar-outline"
         />
-        <View style={{ height: 12 }} />
+        <View style={{ height: 5 }} />
         <View style={styles.calendarHeader}>
           <Pressable onPress={() => goMonth(-1)} style={styles.monthNav}>
             <Text style={styles.monthNavText}>‹</Text>
@@ -621,8 +621,13 @@ const makeStyles = (theme: Theme) =>
     monthNavText: { fontSize: 20, fontWeight: '800', color: theme.colors.primary },
     weekRow: { flexDirection: 'row', marginTop: 12 },
     weekDay: { width: '14.285%', textAlign: 'center', fontSize: 12, color: theme.colors.muted },
-    calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-    dayCell: { width: '14.285%', alignItems: 'center', marginVertical: 6 },
+    calendarGrid: { 
+  flexDirection: 'row', 
+  flexWrap: 'wrap', 
+  marginTop: 4    // 👈 was 8
+},
+
+    dayCell: { width: '14.285%', alignItems: 'center', marginVertical: 2 },
     dayButton: {
       width: 36,
       height: 36,

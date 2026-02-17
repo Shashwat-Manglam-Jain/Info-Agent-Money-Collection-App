@@ -46,6 +46,6 @@ const makeStyles = (theme: Theme) =>
       justifyContent: 'center',
     },
     title: { fontSize: 14, fontWeight: '900', color: theme.colors.text, letterSpacing: 0.2 },
-    subtitle: { marginTop: 3, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
+    subtitle: { marginTop: 1, fontSize: 12, color: theme.colors.muted, lineHeight: 17 },
     right: { marginLeft: 10 },
   });

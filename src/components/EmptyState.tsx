@@ -27,7 +27,7 @@ export function EmptyState({ icon, title, message }: Props) {
 
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
-    wrap: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 14 },
+    wrap: { alignItems: 'center', paddingVertical: 2, paddingHorizontal: 14 },
     icon: {
       width: 54,
       height: 54,
