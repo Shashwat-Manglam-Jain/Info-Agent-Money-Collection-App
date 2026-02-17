@@ -27,6 +27,22 @@ export type ExportFileResult = {
   lotKey: string;
 };
 
+function shareMetaForFormat(format: ExportFormat): {
+  mimeType: string;
+  UTI: string;
+} {
+  if (format === 'txt') {
+    return { mimeType: 'text/plain', UTI: 'public.plain-text' };
+  }
+  if (format === 'pdf') {
+    return { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' };
+  }
+  return {
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    UTI: 'org.openxmlformats.spreadsheetml.sheet',
+  };
+}
+
 function compactNowForFilename(iso: string): string {
   // 2026-02-08T18:51:12.345Z -> 20260208_185112Z
   const date = iso.slice(0, 10).replace(/-/g, '');
@@ -309,9 +325,14 @@ export async function exportPendingAndShare(params: {
         lotLabel,
         collections: group.items,
       });
-      const printed = await Print.printToFileAsync({ html });
-      const base64 = await new File(printed.uri).base64();
-      file.write(base64, { encoding: 'base64' });
+      const printed = await Print.printToFileAsync({ html, base64: true });
+      const pdfBase64 = printed.base64 && printed.base64.trim().length > 0
+        ? printed.base64
+        : await new File(printed.uri).base64();
+      if (!pdfBase64 || pdfBase64.trim().length === 0) {
+        throw new Error('Failed to generate PDF content.');
+      }
+      file.write(pdfBase64, { encoding: 'base64' });
     } else {
       const base64 = buildExcelBase64({
         society: params.society,
@@ -350,14 +371,11 @@ export async function exportPendingAndShare(params: {
   let shared = false;
   if (results.length === 1 && (await Sharing.isAvailableAsync())) {
     const fileUri = results[0].fileUri;
+    const shareMeta = shareMetaForFormat(format);
     await Sharing.shareAsync(fileUri, {
       dialogTitle: 'Export pending collections',
-      mimeType:
-        format === 'txt'
-          ? 'text/plain'
-          : format === 'pdf'
-            ? 'application/pdf'
-            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      mimeType: shareMeta.mimeType,
+      UTI: shareMeta.UTI,
     });
     shared = true;
   }

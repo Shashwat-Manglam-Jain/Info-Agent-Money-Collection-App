@@ -16,7 +16,7 @@ import { updateAgentPinByCode } from "../../db/repo";
 
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { db } = useApp();
+  const { db, signIn } = useApp();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -53,7 +53,9 @@ export function RegisterScreen() {
       });
 
       if (result === "updated") {
-        Alert.alert("PIN saved", "You can now sign in using Agent Code and PIN.", [
+        const signedIn = await signIn({ agentCode: trimmedAgentCode, pin });
+        if (signedIn) return;
+        Alert.alert("PIN saved", "PIN saved. Please sign in once from Login.", [
           { text: "OK", onPress: () => nav.goBack() },
         ]);
         return;

@@ -7,7 +7,7 @@ const mockState = vi.hoisted(() => ({
   markCalls: [] as Array<any>,
   writes: [] as Array<{ uri: string; content: string; encoding: string | undefined }>,
   shareCalls: [] as Array<{ uri: string; options: any }>,
-  printCalls: [] as Array<{ html: string }>,
+  printCalls: [] as Array<{ html: string; base64?: boolean }>,
   events: [] as string[],
   sharingAvailable: true,
 }));
@@ -67,9 +67,9 @@ vi.mock('expo-sharing', () => ({
 }));
 
 vi.mock('expo-print', () => ({
-  printToFileAsync: async (params: { html: string }) => {
-    mockState.printCalls.push({ html: params.html });
-    return { uri: 'file:///cache/print-output.pdf' };
+  printToFileAsync: async (params: { html: string; base64?: boolean }) => {
+    mockState.printCalls.push({ html: params.html, base64: params.base64 });
+    return { uri: 'file:///cache/print-output.pdf', base64: 'BASE64_PRINT_CONTENT' };
   },
 }));
 
@@ -294,10 +294,13 @@ describe('exportPendingAndShare', () => {
     expect(result).not.toBeNull();
     expect(result?.files).toHaveLength(1);
     expect(mockState.printCalls).toHaveLength(1);
+    expect(mockState.printCalls[0].base64).toBe(true);
     expect(mockState.writes).toHaveLength(1);
     expect(mockState.writes[0].uri).toContain('IAMC_SOC001_001_007_PIGMY_DAILY_20260212_101112Z.pdf');
     expect(mockState.writes[0].encoding).toBe('base64');
+    expect(mockState.writes[0].content).toBe('BASE64_PRINT_CONTENT');
     expect(mockState.shareCalls).toHaveLength(1);
     expect(mockState.shareCalls[0].options?.mimeType).toBe('application/pdf');
+    expect(mockState.shareCalls[0].options?.UTI).toBe('com.adobe.pdf');
   });
 });
