@@ -232,8 +232,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
             isAddMode
               ? `Add a new ${categoryText.toLowerCase()} file. Existing data stays. PIN is set to 0000.`
               : category
-                ? `Import only ${categoryText.toLowerCase()} file data. Existing matching data is replaced. PIN is set to 0000.`
-                : 'Import agent report data shared by your admin. Existing matching data is replaced. PIN is set to 0000.'
+                ? `Import only ${categoryText.toLowerCase()} file data. Pending collections are kept until export; exported old data is replaced. PIN is set to 0000.`
+                : 'Import agent report data shared by your admin. Pending collections are kept until export; exported old data is replaced. PIN is set to 0000.'
           }
           icon="cloud-download-outline"
         />

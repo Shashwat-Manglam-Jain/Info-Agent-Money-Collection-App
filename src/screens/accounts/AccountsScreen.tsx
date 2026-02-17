@@ -39,6 +39,7 @@ export function AccountsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setFilter("ALL");
       (async () => {
         if (!db || !society || !agent) return;
         setLoading(true);
@@ -236,7 +237,9 @@ export function AccountsScreen() {
                 data={filtered}
                 keyExtractor={(a) => a.id}
                 style={{ flex: 1 }}
+                contentContainerStyle={styles.listContent}
                 keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 ItemSeparatorComponent={() => <View style={styles.sep} />}
                 renderItem={({ item }) => (
                   <Pressable
@@ -374,6 +377,7 @@ const makeStyles = (theme: Theme) =>
     statusTextDone: { color: theme.colors.success },
     statusTextPending: { color: theme.colors.danger },
     sep: { height: 8 },
+    listContent: { paddingBottom: 10 },
     filterRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     filterChip: {
       paddingVertical: 8,

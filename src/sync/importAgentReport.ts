@@ -94,18 +94,12 @@ export async function importParsedReport(
         }
       }
 
-      await db.runAsync(
-        `DELETE FROM exports
-         WHERE society_id = ? AND agent_id = ?;`,
-        societyId,
-        agentId
-      );
-
       for (const lot of lots.values()) {
         if (lot.accountHeadCode) {
           await db.runAsync(
             `DELETE FROM collections
              WHERE society_id = ? AND agent_id = ?
+               AND status = 'EXPORTED'
                AND account_id IN (
                  SELECT id FROM accounts
                  WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
@@ -123,18 +117,25 @@ export async function importParsedReport(
           await db.runAsync(
             `DELETE FROM accounts
              WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
-               AND account_type = ? AND frequency = ? AND account_head_code = ?;`,
+               AND account_type = ? AND frequency = ? AND account_head_code = ?
+               AND id NOT IN (
+                 SELECT account_id FROM collections
+                 WHERE society_id = ? AND agent_id = ? AND status = 'PENDING'
+               );`,
             societyId,
             agentId,
             lot.lotKey,
             lot.accountType,
             lot.frequency,
-            lot.accountHeadCode
+            lot.accountHeadCode,
+            societyId,
+            agentId
           );
         } else {
           await db.runAsync(
             `DELETE FROM collections
              WHERE society_id = ? AND agent_id = ?
+               AND status = 'EXPORTED'
                AND account_id IN (
                  SELECT id FROM accounts
                  WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
@@ -153,12 +154,18 @@ export async function importParsedReport(
             `DELETE FROM accounts
              WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
                AND account_type = ? AND frequency = ?
-               AND (account_head_code IS NULL OR account_head_code = '');`,
+               AND (account_head_code IS NULL OR account_head_code = '')
+               AND id NOT IN (
+                 SELECT account_id FROM collections
+                 WHERE society_id = ? AND agent_id = ? AND status = 'PENDING'
+               );`,
             societyId,
             agentId,
             lot.lotKey,
             lot.accountType,
-            lot.frequency
+            lot.frequency,
+            societyId,
+            agentId
           );
         }
       }

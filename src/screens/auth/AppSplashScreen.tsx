@@ -176,11 +176,6 @@ export function AppSplashScreen() {
     outputRange: ['-10deg', '0deg'],
   });
 
-  const floatAnimation = pulseAnim.interpolate({
-    inputRange: [1, 1.1],
-    outputRange: [0, -10],
-  });
-
   return (
     <View style={styles.root}>
       {/* Animated Background Gradients */}

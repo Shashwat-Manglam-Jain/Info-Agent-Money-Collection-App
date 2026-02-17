@@ -91,14 +91,16 @@ describe('importParsedReport', () => {
     await importParsedReport(db as any, makeReport());
 
     const deleteExports = runCalls.find((c) => c.sql.includes('DELETE FROM exports'));
-    expect(deleteExports?.params).toEqual(['soc-1', 'agent-1']);
+    expect(deleteExports).toBeUndefined();
 
     const deleteCollections = runCalls.find((c) => c.sql.includes('DELETE FROM collections'));
     expect(deleteCollections?.sql).toContain('society_id = ? AND agent_id = ?');
+    expect(deleteCollections?.sql).toContain("status = 'EXPORTED'");
     expect(deleteCollections?.params?.slice(0, 2)).toEqual(['soc-1', 'agent-1']);
 
     const deleteAccounts = runCalls.find((c) => c.sql.includes('DELETE FROM accounts'));
     expect(deleteAccounts?.sql).toContain('account_lot_key = ?');
+    expect(deleteAccounts?.sql).toContain("status = 'PENDING'");
     expect(deleteAccounts?.params?.slice(0, 2)).toEqual(['soc-1', 'agent-1']);
   });
 });

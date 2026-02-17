@@ -8,6 +8,7 @@ const mockState = vi.hoisted(() => ({
   writes: [] as Array<{ uri: string; content: string; encoding: string | undefined }>,
   shareCalls: [] as Array<{ uri: string; options: any }>,
   printCalls: [] as Array<{ html: string }>,
+  events: [] as string[],
   sharingAvailable: true,
 }));
 
@@ -15,6 +16,7 @@ vi.mock('../src/db/repo', () => ({
   listPendingCollections: async () => mockState.pendingCollections,
   markExported: async (params: any) => {
     mockState.markCalls.push(params);
+    mockState.events.push('mark');
   },
 }));
 
@@ -45,6 +47,7 @@ vi.mock('expo-file-system', () => {
     }
     write(content: string, opts?: { encoding?: string }) {
       mockState.writes.push({ uri: this.uri, content, encoding: opts?.encoding });
+      mockState.events.push('write');
     }
   }
 
@@ -59,6 +62,7 @@ vi.mock('expo-sharing', () => ({
   isAvailableAsync: async () => mockState.sharingAvailable,
   shareAsync: async (uri: string, options: any) => {
     mockState.shareCalls.push({ uri, options });
+    mockState.events.push('share');
   },
 }));
 
@@ -112,6 +116,7 @@ describe('exportPendingAndShare', () => {
     mockState.writes.length = 0;
     mockState.shareCalls.length = 0;
     mockState.printCalls.length = 0;
+    mockState.events.length = 0;
     mockState.sharingAvailable = true;
   });
 
@@ -183,6 +188,28 @@ describe('exportPendingAndShare', () => {
     expect(result?.shared).toBe(true);
     expect(mockState.shareCalls).toHaveLength(1);
     expect(mockState.shareCalls[0].uri).toContain('IAMC_SOC001_001_007_PIGMY_DAILY_20260212_101112Z.txt');
+  });
+
+  it('stores and marks exported before share is triggered', async () => {
+    mockState.pendingCollections = [
+      collectionRow({
+        id: 'c-1',
+        accountNo: '00700001',
+        clientName: 'PIGMY CLIENT',
+        accountHeadCode: '007',
+        accountType: 'PIGMY',
+        frequency: 'DAILY',
+      }),
+    ];
+
+    const result = await exportPendingAndShare({ db, society: society as any, agent: agent as any, format: 'txt' });
+
+    expect(result?.shared).toBe(true);
+    expect(mockState.events).toContain('write');
+    expect(mockState.events).toContain('mark');
+    expect(mockState.events).toContain('share');
+    expect(mockState.events.indexOf('write')).toBeLessThan(mockState.events.indexOf('mark'));
+    expect(mockState.events.indexOf('mark')).toBeLessThan(mockState.events.indexOf('share'));
   });
 
   it('exports only the selected category when category filter is provided', async () => {

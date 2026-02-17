@@ -1,5 +1,5 @@
 import { PropsWithChildren, useMemo } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -16,11 +16,16 @@ export function Screen({ children }: PropsWithChildren) {
   return (
     <SafeAreaView style={styles.safe} edges={["left", "right"]}>
       <BackgroundLayer />
-      <View style={styles.container}>
-        <View style={styles.screenContentWrap}>
-          <View style={styles.screenContent}>{children}</View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={styles.container}>
+          <View style={styles.screenContentWrap}>
+            <View style={styles.screenContent}>{children}</View>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

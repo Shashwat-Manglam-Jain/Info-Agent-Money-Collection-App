@@ -150,6 +150,11 @@ export function AccountDetailScreen({ route, navigation }: Props) {
       setAmountText(paiseToRupeesText(entry.collectedPaise));
       setRemarks(entry.remarks ?? '');
       showToast(`Successfully paid ${formatINR(entry.collectedPaise)}.`);
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }
     } finally {
       setSaving(false);
     }

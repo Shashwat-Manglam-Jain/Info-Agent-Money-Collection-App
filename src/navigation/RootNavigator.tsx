@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   DarkTheme,
   DefaultTheme,
@@ -51,7 +51,9 @@ const getImportMasterDataScreen = () =>
 function MainTabs() {
   const theme = useTheme();
   const { toggleTheme } = useThemeController();
-  const insets = useSafeAreaInsets(); // 👈 YE ADD KARNA HAI
+  const insets = useSafeAreaInsets();
+  const tabBarBottomInset =
+    Platform.OS === "android" && insets.bottom === 0 ? 24 : insets.bottom;
 
   const styles = StyleSheet.create({
     headerLeftIconWrap: {
@@ -138,9 +140,9 @@ function MainTabs() {
             borderTopColor: theme.colors.border,
             borderTopWidth: 1,
 
-            height: 64 + insets.bottom, // 👈 YAHAN ADD KARNA HAI
+            height: 64 + tabBarBottomInset,
             paddingTop: 4,
-            paddingBottom: 8 + insets.bottom, // 👈 IMPORTANT
+            paddingBottom: 8 + tabBarBottomInset,
 
             paddingHorizontal: 8,
           },
