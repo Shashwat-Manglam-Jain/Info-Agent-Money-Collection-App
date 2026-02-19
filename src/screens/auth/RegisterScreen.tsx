@@ -9,6 +9,7 @@ import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { TextField } from "../../components/TextField";
 import type { RootStackParamList } from "../../navigation/types";
+import { useI18n } from "../../i18n";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 import { images } from "../../assets/images";
@@ -17,6 +18,7 @@ import { updateAgentPinByCode } from "../../db/repo";
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, signIn } = useApp();
+  const { t } = useI18n();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -33,15 +35,24 @@ export function RegisterScreen() {
     if (!db) return;
     const trimmedAgentCode = agentCode.trim();
     if (!trimmedAgentCode) {
-      Alert.alert("Missing agent code", "Enter a valid agent code.");
+      Alert.alert(
+        t("auth.register.missingAgentCodeTitle"),
+        t("auth.register.missingAgentCodeMessage")
+      );
       return;
     }
     if (pin.length < 4) {
-      Alert.alert("Invalid PIN", "PIN must be at least 4 digits.");
+      Alert.alert(
+        t("auth.register.invalidPinTitle"),
+        t("auth.register.invalidPinMessage")
+      );
       return;
     }
     if (pin !== confirmPin) {
-      Alert.alert("PIN mismatch", "PIN and confirm PIN must match.");
+      Alert.alert(
+        t("auth.register.pinMismatchTitle"),
+        t("auth.register.pinMismatchMessage")
+      );
       return;
     }
 
@@ -55,23 +66,25 @@ export function RegisterScreen() {
       if (result === "updated") {
         const signedIn = await signIn({ agentCode: trimmedAgentCode, pin });
         if (signedIn) return;
-        Alert.alert("PIN saved", "PIN saved. Please sign in once from Login.", [
-          { text: "OK", onPress: () => nav.goBack() },
-        ]);
+        Alert.alert(
+          t("auth.register.pinSavedTitle"),
+          t("auth.register.pinSavedMessage"),
+          [{ text: t("common.ok"), onPress: () => nav.goBack() }]
+        );
         return;
       }
 
       if (result === "ambiguous_agent_code") {
         Alert.alert(
-          "Agent code not unique",
-          "This agent code exists in multiple societies. Import your file first for automatic sign in, then try again."
+          t("auth.register.agentCodeNotUniqueTitle"),
+          t("auth.register.agentCodeNotUniqueMessage")
         );
         return;
       }
 
       Alert.alert(
-        "Agent not found",
-        "No active agent found for this code. Import your data file first, then create PIN."
+        t("auth.register.agentNotFoundTitle"),
+        t("auth.register.agentNotFoundMessage")
       );
     } finally {
       setBusy(false);
@@ -79,36 +92,36 @@ export function RegisterScreen() {
   };
 
   return (
-    <AuthScreen title="Register" heroImage={images.Logo}>
+    <AuthScreen title={t("auth.register.title")} heroImage={images.Logo}>
       <Text style={styles.subtitles}>
-        Create a secure PIN for your agent profile
+        {t("auth.register.subtitle")}
       </Text>
 
       <Card style={styles.formCard}>
         <View style={styles.formFields}>
           <TextField
-            label="Agent Code"
+            label={t("auth.shared.agentCode")}
             value={agentCode}
             onChangeText={(value) => setAgentCode(value.toUpperCase())}
-            placeholder="e.g. AG001"
+            placeholder={t("auth.register.agentCodePlaceholder")}
             leftIcon="agent"
             autoCapitalize="characters"
             autoCorrect={false}
           />
           <TextField
-            label="New PIN"
+            label={t("auth.register.newPin")}
             value={pin}
             onChangeText={(value) => setPin(value.replace(/[^0-9]/g, ""))}
             keyboardType="number-pad"
             secureTextEntry
             allowReveal
-            placeholder="At least 4 digits"
+            placeholder={t("auth.register.newPinPlaceholder")}
             leftIcon="key-outline"
             autoCorrect={false}
-            error={pinTooShort ? "PIN must be at least 4 digits." : undefined}
+            error={pinTooShort ? t("auth.register.pinTooShort") : undefined}
           />
           <TextField
-            label="Confirm PIN"
+            label={t("auth.register.confirmPin")}
             value={confirmPin}
             onChangeText={(value) =>
               setConfirmPin(value.replace(/[^0-9]/g, ""))
@@ -116,15 +129,15 @@ export function RegisterScreen() {
             keyboardType="number-pad"
             secureTextEntry
             allowReveal
-            placeholder="Re-enter PIN"
+            placeholder={t("auth.register.confirmPinPlaceholder")}
             leftIcon="checkmark-circle-outline"
             autoCorrect={false}
-            error={pinMismatch ? "PIN does not match." : undefined}
+            error={pinMismatch ? t("auth.register.pinMismatch") : undefined}
           />
         </View>
 
         <Button
-          title={busy ? "Saving…" : "Save PIN"}
+          title={busy ? t("auth.register.savingPin") : t("auth.register.savePin")}
           iconLeft="save-outline"
           onPress={submit}
           loading={busy}
@@ -135,7 +148,7 @@ export function RegisterScreen() {
 
         <View style={styles.secondaryActions}>
           <Button
-            title="Import Daily File"
+            title={t("actions.importDailyFile")}
             variant="ghost"
             iconLeft="cloud-download-outline"
             onPress={() =>
@@ -146,7 +159,7 @@ export function RegisterScreen() {
             }
           />
           <Button
-            title="Import Monthly File"
+            title={t("actions.importMonthlyFile")}
             variant="ghost"
             iconLeft="document-text-outline"
             onPress={() =>
@@ -157,7 +170,7 @@ export function RegisterScreen() {
             }
           />
           <Button
-            title="Import Loan File"
+            title={t("actions.importLoanFile")}
             variant="ghost"
             iconLeft="cash-outline"
             onPress={() =>
@@ -168,7 +181,7 @@ export function RegisterScreen() {
             }
           />
           <Button
-            title="Back to Sign In"
+            title={t("auth.register.backToSignIn")}
             variant="secondary"
             iconLeft="arrow-back-outline"
             onPress={() => nav.goBack()}
@@ -179,7 +192,8 @@ export function RegisterScreen() {
       <View style={styles.poweredByContainer}>
         <View style={styles.poweredByLine} />
         <Text style={styles.poweredByText}>
-          Powered by <Text style={styles.infopathText}>InfoPath Solution</Text>
+          {t("branding.poweredBy")}{" "}
+          <Text style={styles.infopathText}>InfoPath Solution</Text>
         </Text>
         <View style={styles.poweredByLine} />
       </View>

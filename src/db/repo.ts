@@ -106,6 +106,9 @@ function mapExportCollection(row: any): ExportCollectionRow {
 
 const REG_SOCIETY_KEY = 'registration.society_name';
 const REG_AGENT_KEY = 'registration.agent_name';
+const IMPORT_LOCK_SOCIETY_CODE_KEY = 'import.lock.society_code';
+const IMPORT_LOCK_AGENT_CODE_KEY = 'import.lock.agent_code';
+const IMPORT_FILE_HASH_PREFIX = 'import.file_hash';
 const ACTIVE_LOT_KEY_SUFFIX = 'key';
 const ACTIVE_LOT_HEAD_SUFFIX = 'head';
 const ACTIVE_LOT_CODE_SUFFIX = 'code';
@@ -117,6 +120,16 @@ const normalizeLotCode = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 };
+const normalizeImportCode = (value: string): string => value.trim().toUpperCase();
+
+const importFileHashKey = (params: {
+  societyCode: string;
+  agentCode: string;
+  fileHash: string;
+}): string =>
+  `${IMPORT_FILE_HASH_PREFIX}.${normalizeImportCode(params.societyCode)}.${normalizeImportCode(
+    params.agentCode
+  )}.${params.fileHash.trim()}`;
 
 
 async function sha256(input: string): Promise<string> {
@@ -283,6 +296,73 @@ export async function saveRegistration(
     await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);', REG_SOCIETY_KEY, params.societyName);
     await db.runAsync('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);', REG_AGENT_KEY, params.agentName);
   });
+}
+
+export type ImportIdentityLock = {
+  societyCode: string;
+  agentCode: string;
+};
+
+export async function getImportIdentityLock(db: SQLiteDatabase): Promise<ImportIdentityLock | null> {
+  const rows = await db.getAllAsync<{ key: string; value: string }>(
+    'SELECT key, value FROM app_meta WHERE key IN (?, ?);',
+    IMPORT_LOCK_SOCIETY_CODE_KEY,
+    IMPORT_LOCK_AGENT_CODE_KEY
+  );
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+  const societyCode = map.get(IMPORT_LOCK_SOCIETY_CODE_KEY);
+  const agentCode = map.get(IMPORT_LOCK_AGENT_CODE_KEY);
+  if (!societyCode || !agentCode) return null;
+  return {
+    societyCode: normalizeImportCode(societyCode),
+    agentCode: normalizeImportCode(agentCode),
+  };
+}
+
+export async function saveImportIdentityLock(
+  db: SQLiteDatabase,
+  params: { societyCode: string; agentCode: string }
+): Promise<void> {
+  const societyCode = normalizeImportCode(params.societyCode);
+  const agentCode = normalizeImportCode(params.agentCode);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
+      IMPORT_LOCK_SOCIETY_CODE_KEY,
+      societyCode
+    );
+    await db.runAsync(
+      'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
+      IMPORT_LOCK_AGENT_CODE_KEY,
+      agentCode
+    );
+  });
+}
+
+export async function hasImportedFileHash(
+  db: SQLiteDatabase,
+  params: { societyCode: string; agentCode: string; fileHash: string }
+): Promise<boolean> {
+  const key = importFileHashKey(params);
+  if (!params.fileHash.trim()) return false;
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_meta WHERE key = ? LIMIT 1;',
+    key
+  );
+  return Boolean(row?.value);
+}
+
+export async function markImportedFileHash(
+  db: SQLiteDatabase,
+  params: { societyCode: string; agentCode: string; fileHash: string }
+): Promise<void> {
+  if (!params.fileHash.trim()) return;
+  const key = importFileHashKey(params);
+  await db.runAsync(
+    'INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);',
+    key,
+    nowISO()
+  );
 }
 
 export async function getActiveLot(db: SQLiteDatabase, societyId: string): Promise<ActiveLot | null> {

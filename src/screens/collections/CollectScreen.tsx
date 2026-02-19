@@ -376,6 +376,7 @@ import { formatINR } from '../../utils/money';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
 import { lotKeyFromParts, lotLabel } from '../../utils/lots';
+import { useClientNameLocalizer, useI18n } from '../../i18n';
 
 const ALL_LOT_KEY = '__all__';
 
@@ -388,6 +389,8 @@ type LotOption = {
 export function CollectScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent, activeLot, setActiveLot } = useApp();
+  const { t } = useI18n();
+  const localizeClientName = useClientNameLocalizer();
 
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -482,18 +485,51 @@ export function CollectScreen() {
     );
   }, [results, activeLot]);
 
+  const formatLotDisplayLabel = useCallback(
+    (params: {
+      accountHead?: string | null;
+      accountHeadCode?: string | null;
+      accountType: AccountLot['accountType'];
+      frequency: AccountLot['frequency'];
+    }): string => localizeClientName(lotLabel(params)),
+    [localizeClientName]
+  );
+
+  const frequencyLabel = useCallback(
+    (frequency: Account['frequency']): string => {
+      if (frequency === 'DAILY') return t('import.category.daily');
+      if (frequency === 'MONTHLY') return t('import.category.monthly');
+      return localizeClientName(frequency);
+    },
+    [localizeClientName, t]
+  );
+
+  const accountTypeLabel = useCallback(
+    (accountType: Account['accountType']): string => {
+      if (accountType === 'LOAN') return t('import.category.loan');
+      return localizeClientName(accountType);
+    },
+    [localizeClientName, t]
+  );
+
   const currentLotKey = activeLot?.key ?? ALL_LOT_KEY;
-  const currentLotLabel = activeLot ? lotLabel(activeLot) : 'All account types';
+  const currentLotLabel = activeLot
+    ? formatLotDisplayLabel(activeLot)
+    : t('accounts.filter.allAccountTypes');
   const currentLotCount = activeLot
     ? (lots.find((lot) => lot.key === activeLot.key)?.count ?? 0)
     : lots.reduce((total, lot) => total + lot.count, 0);
 
   const lotOptions = useMemo<LotOption[]>(
     () => [
-      { key: ALL_LOT_KEY, label: 'All account types', count: lots.reduce((total, lot) => total + lot.count, 0) },
+      {
+        key: ALL_LOT_KEY,
+        label: t('accounts.filter.allAccountTypes'),
+        count: lots.reduce((total, lot) => total + lot.count, 0),
+      },
       ...lots.map((lot) => ({
         key: lot.key,
-        label: lotLabel({
+        label: formatLotDisplayLabel({
           accountHead: lot.accountHead,
           accountHeadCode: lot.accountHeadCode,
           accountType: lot.accountType,
@@ -502,7 +538,7 @@ export function CollectScreen() {
         count: lot.count,
       })),
     ],
-    [lots]
+    [formatLotDisplayLabel, lots, t]
   );
 
   const filteredLotOptions = useMemo(() => {
@@ -568,7 +604,7 @@ export function CollectScreen() {
               {item.label}
             </Text>
             <Text style={styles.lotRowSub}>
-              {item.count} accounts
+              {t('collect.accountType.accountsCount', { count: item.count })}
             </Text>
           </View>
           <View
@@ -585,13 +621,17 @@ export function CollectScreen() {
                 isSelected && styles.lotRowBadgeTextSelected,
               ]}
             >
-              {isCurrent ? 'Current' : isSelected ? 'Selected' : 'Tap'}
+              {isCurrent
+                ? t('collect.accountType.current')
+                : isSelected
+                  ? t('collect.accountType.selected')
+                  : t('collect.accountType.tap')}
             </Text>
           </View>
         </Pressable>
       );
     },
-    [currentLotKey, pendingLotSelection, styles]
+    [currentLotKey, pendingLotSelection, styles, t]
   );
 
   const collectionProgress =
@@ -613,11 +653,11 @@ export function CollectScreen() {
     {/* SEARCH TOP */}
       <Card>
         <TextField
-          label="Search Account"
+          label={t('collect.search.label')}
           value={digits}
           onChangeText={(v) => setDigits(v.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
-          placeholder="Enter last 4 digits..."
+          placeholder={t('collect.search.placeholder')}
           leftIcon="search-outline"
         />
       </Card>
@@ -626,8 +666,8 @@ export function CollectScreen() {
       {digits ? (
         <Card>
           <SectionHeader
-            title="Matches"
-            subtitle={`Results for: ${digits}`}
+            title={t('collect.search.matchesTitle')}
+            subtitle={t('collect.search.matchesSubtitle', { digits })}
             icon="list-outline"
           />
 
@@ -636,8 +676,8 @@ export function CollectScreen() {
           {filteredResults.length === 0 ? (
             <EmptyState
               icon="search-outline"
-              title="No matches"
-              message="Try different digits"
+              title={t('collect.search.noMatchesTitle')}
+              message={t('collect.search.noMatchesMessage')}
             />
           ) : (
             <FlatList
@@ -665,7 +705,7 @@ export function CollectScreen() {
                           style={styles.rowTitle}
                           numberOfLines={1}
                         >
-                          {item.clientName}
+                          {localizeClientName(item.clientName)}
                         </Text>
                       </View>
 
@@ -675,8 +715,10 @@ export function CollectScreen() {
                     </View>
 
                     <Text style={styles.rowSub}>
-                      {(item.accountHead ?? item.accountType)} •{' '}
-                      {item.frequency} • Balance{' '}
+                      {(item.accountHead
+                        ? localizeClientName(item.accountHead)
+                        : accountTypeLabel(item.accountType))}{' '}
+                      • {frequencyLabel(item.frequency)} • Balance{' '}
                       {formatINR(item.balancePaise)}
                     </Text>
                   </View>
@@ -694,26 +736,26 @@ export function CollectScreen() {
       {/* ACCOUNT TYPE */}
       <Card>
         <SectionHeader
-          title="Account Type"
-          subtitle="Selected type"
+          title={t('collect.accountType.title')}
+          subtitle={t('collect.accountType.subtitle')}
           icon="layers-outline"
           right={(
             <View style={styles.accountTypeActions}>
               <Pressable
                 onPress={() => nav.navigate('ImportMasterData', { mode: 'add' })}
                 style={styles.accountTypeButton}
-                accessibilityLabel="Add account type"
+                accessibilityLabel={t('collect.accountType.accessibilityAdd')}
               >
                 <Icon name="add-circle-outline" size={16} color={theme.colors.primary} />
-                <Text style={styles.accountTypeButtonText}>Add</Text>
+                <Text style={styles.accountTypeButtonText}>{t('collect.accountType.buttonAdd')}</Text>
               </Pressable>
               <Pressable
                 onPress={openLotSwitcher}
                 style={styles.accountTypeButton}
-                accessibilityLabel="Change account type"
+                accessibilityLabel={t('collect.accountType.accessibilityChange')}
               >
                 <Icon name="swap-horizontal-outline" size={16} color={theme.colors.primary} />
-                <Text style={styles.accountTypeButtonText}>Change</Text>
+                <Text style={styles.accountTypeButtonText}>{t('collect.accountType.buttonChange')}</Text>
               </Pressable>
             </View>
           )}
@@ -729,7 +771,7 @@ export function CollectScreen() {
               <Icon name="layers-outline" size={16} color={theme.colors.primary} />
             </View>
             <View style={styles.selectedLotBody}>
-              <Text style={styles.selectedLotLabel}>Selected</Text>
+              <Text style={styles.selectedLotLabel}>{t('collect.accountType.selected')}</Text>
               <Text style={styles.selectedLotName} numberOfLines={1}>
                 {currentLotLabel}
               </Text>
@@ -745,15 +787,17 @@ export function CollectScreen() {
         <View style={styles.lotModalBackdrop}>
           <Pressable style={styles.lotModalDismiss} onPress={closeLotSwitcher} />
           <View style={styles.lotModalCard}>
-            <Text style={styles.lotModalTitle}>Change Account Type</Text>
-            <Text style={styles.lotModalSubtitle}>Current: {currentLotLabel}</Text>
+            <Text style={styles.lotModalTitle}>{t('collect.accountType.modalTitle')}</Text>
+            <Text style={styles.lotModalSubtitle}>
+              {t('collect.accountType.modalCurrent', { label: currentLotLabel })}
+            </Text>
 
             <View style={styles.lotSearchRow}>
               <Icon name="search-outline" size={16} color={theme.colors.muted} />
               <TextInput
                 value={lotQuery}
                 onChangeText={setLotQuery}
-                placeholder="Search account type..."
+                placeholder={t('collect.accountType.searchPlaceholder')}
                 placeholderTextColor={theme.colors.muted}
                 style={styles.lotSearchInput}
                 autoCapitalize="none"
@@ -762,12 +806,17 @@ export function CollectScreen() {
             </View>
 
             <Text style={styles.lotCountText}>
-              {filteredLotOptions.length} / {lotOptions.length} options
+              {t('collect.accountType.optionsCount', {
+                filtered: filteredLotOptions.length,
+                total: lotOptions.length,
+              })}
             </Text>
 
             {filteredLotOptions.length === 0 ? (
               <View style={styles.lotEmptyState}>
-                <Text style={styles.lotEmptyStateText}>No account type found for this search.</Text>
+                <Text style={styles.lotEmptyStateText}>
+                  {t('collect.accountType.noResults')}
+                </Text>
               </View>
             ) : (
               <FlatList
@@ -786,13 +835,15 @@ export function CollectScreen() {
 
             <View style={styles.lotModalActions}>
               <Button
-                title="Cancel"
+                title={t('common.cancel')}
                 variant="ghost"
                 onPress={closeLotSwitcher}
                 style={styles.lotActionButton}
               />
               <Button
-                title={canApplyLotSelection ? 'Apply Select' : 'Already Select'}
+                title={canApplyLotSelection
+                  ? t('collect.accountType.buttonApplySelect')
+                  : t('collect.accountType.buttonAlreadySelected')}
                 onPress={() => void applyLotSelection()}
                 disabled={!canApplyLotSelection}
                 iconLeft={canApplyLotSelection ? 'swap-horizontal-outline' : undefined}
@@ -806,8 +857,8 @@ export function CollectScreen() {
       {/* PENDING SUMMARY */}
       <Card>
         <SectionHeader
-          title="Pending (Until Export)"
-          subtitle="Entries remain here until you export from Sync."
+          title={t('collect.pending.title')}
+          subtitle={t('collect.pending.subtitle')}
           icon="time-outline"
         />
 
@@ -820,21 +871,21 @@ export function CollectScreen() {
             <View style={styles.statsGrid}>
               <View style={styles.statTile}>
                 <Text style={styles.statValue}>{pendingCount}</Text>
-                <Text style={styles.statLabel}>Saved</Text>
+                <Text style={styles.statLabel}>{t('collect.pending.saved')}</Text>
               </View>
 
               <View style={styles.statTile}>
                 <Text style={styles.statValue}>
                   {remainingCount}
                 </Text>
-                <Text style={styles.statLabel}>Remaining</Text>
+                <Text style={styles.statLabel}>{t('collect.pending.remaining')}</Text>
               </View>
 
               <View style={styles.statTile}>
                 <Text style={styles.statValue}>
                   {formatINR(pendingTotal)}
                 </Text>
-                <Text style={styles.statLabel}>Amount</Text>
+                <Text style={styles.statLabel}>{t('collect.pending.amount')}</Text>
               </View>
             </View>
 
@@ -852,8 +903,11 @@ export function CollectScreen() {
             </View>
 
             <Text style={styles.kv}>
-              {Math.round(collectionProgress * 100)}% complete •{' '}
-              {pendingCount} / {totalAccounts}
+              {t('collect.pending.progress', {
+                percent: Math.round(collectionProgress * 100),
+                pendingCount,
+                totalAccounts,
+              })}
             </Text>
 
             <View style={{ height: 10 }} />
@@ -861,8 +915,8 @@ export function CollectScreen() {
             {pendingEntries.length === 0 ? (
               <EmptyState
                 icon="receipt-outline"
-                title="No pending collections"
-                message="Saved collections stay here until exported."
+                title={t('collect.pending.emptyTitle')}
+                message={t('collect.pending.emptyMessage')}
               />
             ) : (
               <FlatList

@@ -15,6 +15,7 @@ import { getAccountById, getPendingCollectionForAccount, upsertCollectionForToda
 import { formatINR, paiseToRupees, rupeesToPaise } from '../../utils/money';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
+import { useClientNameLocalizer, useI18n } from '../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AccountDetail'>;
 
@@ -26,6 +27,8 @@ function paiseToRupeesText(paise: number): string {
 export function AccountDetailScreen({ route, navigation }: Props) {
   const { accountId } = route.params;
   const { db, society, agent } = useApp();
+  const { t } = useI18n();
+  const localizeClientName = useClientNameLocalizer();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [account, setAccount] = useState<Account | null>(null);
@@ -193,14 +196,22 @@ export function AccountDetailScreen({ route, navigation }: Props) {
   return (
     <ScrollScreen>
       <Card>
-        <Text style={styles.title}>{account.clientName}</Text>
+        <Text style={styles.title}>{localizeClientName(account.clientName)}</Text>
         <Text style={styles.sub}>
-          {account.accountType} • {account.frequency}
+          {account.accountType === 'LOAN'
+            ? t('import.category.loan')
+            : localizeClientName(account.accountType)}{' '}
+          •{' '}
+          {account.frequency === 'DAILY'
+            ? t('import.category.daily')
+            : account.frequency === 'MONTHLY'
+              ? t('import.category.monthly')
+              : localizeClientName(account.frequency)}
         </Text>
         <View style={{ height: 10 }} />
         <Text style={styles.kv}>Account No: {account.accountNo}</Text>
         <Text style={styles.kv}>
-          Account Head: {account.accountHead ?? '—'}
+          Account Head: {account.accountHead ? localizeClientName(account.accountHead) : '—'}
           {account.accountHeadCode ? ` (${account.accountHeadCode})` : ''}
         </Text>
         <Text style={styles.kv}>
@@ -217,11 +228,14 @@ export function AccountDetailScreen({ route, navigation }: Props) {
 
       <Card>
         <SectionHeader
-          title="Collect (Pending until export)"
+          title={t('accountDetail.collect.title')}
           subtitle={
             pendingEntry
-              ? `Saved and pending export: ${formatINR(pendingEntry.collectedPaise)} (${pendingEntry.collectionDate})`
-              : 'No pending entry for this account.'
+              ? t('accountDetail.collect.subtitleSaved', {
+                  amount: formatINR(pendingEntry.collectedPaise),
+                  date: pendingEntry.collectionDate,
+                })
+              : t('accountDetail.collect.subtitleNone')
           }
           icon="cash-outline"
         />

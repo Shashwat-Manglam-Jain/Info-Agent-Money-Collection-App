@@ -21,10 +21,13 @@ import type { Theme } from "../../theme";
 import { formatINR } from "../../utils/money";
 import { lotKeyFromParts, lotLabel } from "../../utils/lots";
 import { Keyboard, TouchableWithoutFeedback } from "react-native";
+import { useClientNameLocalizer, useI18n } from "../../i18n";
 
 export function AccountsScreen() {
   const nav = useNavigation<any>();
   const { db, society, agent, activeLot, setActiveLot } = useApp();
+  const { t } = useI18n();
+  const localizeClientName = useClientNameLocalizer();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [query, setQuery] = useState("");
@@ -87,15 +90,31 @@ export function AccountsScreen() {
     return base.filter(
       (a) =>
         a.clientName.toLowerCase().includes(q) ||
+        localizeClientName(a.clientName).toLowerCase().includes(q) ||
         a.accountNo.toLowerCase().includes(q),
     );
-  }, [baseAccounts, collectedIds, filter, query]);
+  }, [baseAccounts, collectedIds, filter, localizeClientName, query]);
 
   const hasAccounts = accounts.length > 0;
   const collectedCount = baseAccounts.filter((a) =>
     collectedIds.has(a.id),
   ).length;
   const remainingCount = Math.max(baseAccounts.length - collectedCount, 0);
+  const frequencyLabel = useCallback(
+    (frequency: Account["frequency"]): string => {
+      if (frequency === "DAILY") return t("import.category.daily");
+      if (frequency === "MONTHLY") return t("import.category.monthly");
+      return localizeClientName(frequency);
+    },
+    [localizeClientName, t],
+  );
+  const accountTypeLabel = useCallback(
+    (accountType: Account["accountType"]): string => {
+      if (accountType === "LOAN") return t("import.category.loan");
+      return localizeClientName(accountType);
+    },
+    [localizeClientName, t],
+  );
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -103,16 +122,20 @@ export function AccountsScreen() {
         <Screen>
           <Card>
             <TextField
-              label="Search Accounts"
+              label={t("accounts.search.label")}
               value={query}
               onChangeText={setQuery}
-              placeholder="Name or Account No"
+              placeholder={t("accounts.search.placeholder")}
               leftIcon="search-outline"
             />
             <View style={{ height: 10 }} />
             <SectionHeader
-              title="Filter"
-              subtitle={`Pending until export • ${activeLot ? lotLabel(activeLot) : "All account types"}`}
+              title={t("accounts.filter.title")}
+              subtitle={t("accounts.filter.pendingUntilExport", {
+                lotLabel: activeLot
+                  ? localizeClientName(lotLabel(activeLot))
+                  : t("accounts.filter.allAccountTypes"),
+              })}
               icon="filter-outline"
             />
             <View style={{ height: 10 }} />
@@ -138,7 +161,7 @@ export function AccountsScreen() {
                       filter === "ALL" && styles.filterTextActive,
                     ]}
                   >
-                    All ({baseAccounts.length})
+                    {t("accounts.filter.all", { count: baseAccounts.length })}
                   </Text>
                 </View>
               </Pressable>
@@ -166,7 +189,7 @@ export function AccountsScreen() {
                         styles.filterTextCollectedActive,
                     ]}
                   >
-                    Collected ({collectedCount})
+                    {t("accounts.filter.collected", { count: collectedCount })}
                   </Text>
                 </View>
               </Pressable>
@@ -194,7 +217,7 @@ export function AccountsScreen() {
                         styles.filterTextRemainingActive,
                     ]}
                   >
-                    Remaining ({remainingCount})
+                    {t("accounts.filter.remaining", { count: remainingCount })}
                   </Text>
                 </View>
               </Pressable>
@@ -203,8 +226,8 @@ export function AccountsScreen() {
 
           <Card style={{ flex: 1 }}>
             <SectionHeader
-              title={`Accounts (${filtered.length})`}
-              subtitle="Tap an account to view details."
+              title={t("accounts.list.title", { count: filtered.length })}
+              subtitle={t("accounts.list.subtitle")}
               icon="people-outline"
             />
             <View style={{ height: 10 }} />
@@ -254,7 +277,7 @@ export function AccountsScreen() {
                           color={theme.colors.primary}
                         />
                         <Text style={styles.rowTitle} numberOfLines={1}>
-                          {item.clientName}
+                          {localizeClientName(item.clientName)}
                         </Text>
                       </View>
 
@@ -278,15 +301,18 @@ export function AccountsScreen() {
                             ]}
                           >
                             {collectedIds.has(item.id)
-                              ? "Collected"
-                              : "Pending"}
+                              ? t("accounts.status.collected")
+                              : t("accounts.status.pending")}
                           </Text>
                         </View>
                       </View>
 
                       <Text style={styles.rowMeta}>
-                        {item.accountHead ?? item.accountType} •{" "}
-                        {item.frequency} • Balance{" "}
+                        {(item.accountHead
+                          ? localizeClientName(item.accountHead)
+                          : accountTypeLabel(item.accountType))}{" "}
+                        • {frequencyLabel(item.frequency)} •{" "}
+                        {t("accounts.row.balance")}{" "}
                         {formatINR(item.balancePaise)}
                       </Text>
                     </View>

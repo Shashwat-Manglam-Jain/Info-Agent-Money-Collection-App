@@ -21,9 +21,25 @@ type ImportResult = {
   accountsUpserted: number;
 };
 
+type ReportLot = {
+  lotKey: string;
+};
+
 function normalizeHeadCode(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function collectReportLots(report: ParsedReport): ReportLot[] {
+  const map = new Map<string, ReportLot>();
+  for (const account of report.accounts) {
+    const accountHeadCode = normalizeHeadCode(account.accountHeadCode);
+    const lotKey = lotKeyFromParts(accountHeadCode, account.accountType, account.frequency);
+    if (!map.has(lotKey)) {
+      map.set(lotKey, { lotKey });
+    }
+  }
+  return [...map.values()];
 }
 
 export async function importParsedReport(
@@ -77,6 +93,43 @@ export async function importParsedReport(
       );
     }
 
+    if (replaceExisting) {
+      const reportLots = collectReportLots(report);
+      for (const lot of reportLots) {
+        await db.runAsync(
+          `DELETE FROM collections
+           WHERE society_id = ? AND agent_id = ?
+             AND status = 'EXPORTED'
+             AND account_id IN (
+               SELECT id FROM accounts
+               WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
+             );`,
+          societyId,
+          agentId,
+          societyId,
+          agentId,
+          lot.lotKey
+        );
+
+        await db.runAsync(
+          `DELETE FROM accounts
+           WHERE society_id = ? AND agent_id = ? AND account_lot_key = ?
+             AND NOT EXISTS (
+               SELECT 1 FROM collections c
+               WHERE c.account_id = accounts.id
+                 AND c.society_id = ?
+                 AND c.agent_id = ?
+                 AND c.status = 'PENDING'
+             );`,
+          societyId,
+          agentId,
+          lot.lotKey,
+          societyId,
+          agentId
+        );
+      }
+    }
+
     for (const a of report.accounts) {
       const lastTxnAt = report.reportDateISO ?? null;
       const balancePaise = rupeesToPaise(a.balanceRupees ?? 0);
@@ -93,7 +146,6 @@ export async function importParsedReport(
       );
 
       if (existing) {
-        if (!replaceExisting) continue;
         await db.runAsync(
           `UPDATE accounts
            SET client_name = ?, account_lot_key = ?, account_type = ?, frequency = ?,

@@ -4,6 +4,7 @@ import {
   type ImageSourcePropType,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { images } from "../assets/images";
+import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
 import type { Theme } from "../theme";
 
@@ -33,6 +35,7 @@ export function AuthScreen({
   heroImageLabel,
 }: Props) {
   const theme = useTheme();
+  const { language, setLanguage, options, t } = useI18n();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
@@ -61,6 +64,33 @@ export function AuthScreen({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <View style={styles.languageRow}>
+              {options.map((option) => {
+                const selected = option.language === language;
+                return (
+                  <Pressable
+                    key={option.language}
+                    onPress={() => setLanguage(option.language)}
+                    style={[
+                      styles.languageChip,
+                      selected ? styles.languageChipActive : undefined,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(option.labelKey)}
+                  >
+                    <Text
+                      style={[
+                        styles.languageChipText,
+                        selected ? styles.languageChipTextActive : undefined,
+                      ]}
+                    >
+                      {t(option.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             {/* Remove the empty brand View completely */}
 
             {heroImage ? (
@@ -139,6 +169,32 @@ const makeStyles = (theme: Theme) =>
       gap: 16,
       // Add paddingTop to control spacing from top
       paddingTop: theme.spacing.md, // Adjust this value as needed
+    },
+    languageRow: {
+      width: "100%",
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
+    },
+    languageChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: theme.radii.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceTint,
+    },
+    languageChipActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    languageChipText: {
+      fontSize: 12,
+      fontWeight: "800",
+      color: theme.colors.textSecondary,
+    },
+    languageChipTextActive: {
+      color: theme.colors.primary,
     },
     // Remove brand style completely
     heroImageContainer: {

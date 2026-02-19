@@ -9,6 +9,7 @@ import { Button } from "../../components/Button";
 import { Card } from "../../components/Card";
 import { TextField } from "../../components/TextField";
 import type { RootStackParamList } from "../../navigation/types";
+import { useI18n } from "../../i18n";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 
@@ -18,6 +19,7 @@ import { images } from "../../assets/images";
 export function LoginScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signIn } = useApp();
+  const { t } = useI18n();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [agentCode, setAgentCode] = useState("");
@@ -30,8 +32,8 @@ export function LoginScreen() {
       const ok = await signIn({ agentCode, pin });
       if (!ok) {
         Alert.alert(
-          "Sign in failed",
-          "Check Agent Code and PIN.",
+          t("auth.login.signInFailedTitle"),
+          t("auth.login.signInFailedMessage"),
         );
       }
     } finally {
@@ -41,36 +43,36 @@ export function LoginScreen() {
 
   return (
     <AuthScreen
-      title="Welcome Back"
+      title={t("auth.login.title")}
       heroImage={images.Logo} // Add your hero image here
     >
-      <Text style={styles.subtitle}>Sign in to your account</Text>
+      <Text style={styles.subtitle}>{t("auth.login.subtitle")}</Text>
 
       <Card style={styles.formCard}>
         <View style={styles.formFields}>
           <TextField
-            label="Agent Code"
+            label={t("auth.shared.agentCode")}
             value={agentCode}
             onChangeText={(value) => setAgentCode(value.toUpperCase())}
-            placeholder="e.g. AG01"
+            placeholder={t("auth.login.agentCodePlaceholder")}
             leftIcon="agent"
             autoCapitalize="characters"
             autoCorrect={false}
           />
           <TextField
-            label="PIN"
+            label={t("auth.shared.pin")}
             value={pin}
             onChangeText={(value) => setPin(value.replace(/[^0-9]/g, ""))}
             keyboardType="number-pad"
             secureTextEntry
             allowReveal
-            placeholder="Enter PIN"
+            placeholder={t("auth.login.pinPlaceholder")}
             leftIcon="key-outline"
             autoCorrect={false}
           />
         </View>
         <Button
-          title={busy ? "Signing In…" : "Sign In"}
+          title={busy ? t("auth.login.signingIn") : t("auth.login.signIn")}
           iconLeft="log-in-outline"
           onPress={handleSignIn}
           loading={busy}
@@ -80,13 +82,13 @@ export function LoginScreen() {
         />
         <View style={styles.secondaryActions}>
           <Button
-            title="Register Agent PIN"
+            title={t("auth.login.registerAgentPin")}
             variant="secondary"
             iconLeft="person-outline"
             onPress={() => nav.navigate("Register")}
           />
           <Button
-            title="Import Daily File"
+            title={t("actions.importDailyFile")}
             variant="ghost"
             iconLeft="cloud-download-outline"
             onPress={() =>
@@ -97,7 +99,7 @@ export function LoginScreen() {
             }
           />
           <Button
-            title="Import Monthly File"
+            title={t("actions.importMonthlyFile")}
             variant="ghost"
             iconLeft="document-text-outline"
             onPress={() =>
@@ -108,7 +110,7 @@ export function LoginScreen() {
             }
           />
           <Button
-            title="Import Loan File"
+            title={t("actions.importLoanFile")}
             variant="ghost"
             iconLeft="cash-outline"
             onPress={() =>
@@ -123,7 +125,8 @@ export function LoginScreen() {
       <View style={styles.poweredByContainer}>
         <View style={styles.poweredByLine} />
         <Text style={styles.poweredByText}>
-          Powered by <Text style={styles.infopathText}>InfoPath Solution</Text>
+          {t("branding.poweredBy")}{" "}
+          <Text style={styles.infopathText}>InfoPath Solution</Text>
         </Text>
         <View style={styles.poweredByLine} />
       </View>

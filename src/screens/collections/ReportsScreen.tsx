@@ -16,6 +16,7 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { listExportsForDate } from '../../db/repo';
 import type { ExportRecord } from '../../models/types';
 import type { RootStackParamList } from '../../navigation/types';
+import { useI18n } from '../../i18n';
 import { rupeesToPaise } from '../../utils/money';
 import { useTheme } from '../../theme';
 import type { Theme } from '../../theme';
@@ -132,11 +133,6 @@ function formatHistoryTimestamp(exportedAtISO: string | null, dateISO: string | 
   if (dateISO && timeISO) return `${dateISO} ${timeISO}`;
   if (dateISO) return dateISO;
   return 'Time unavailable';
-}
-
-function formatCollectionsLabel(collectionsCount: number | null): string {
-  if (collectionsCount == null) return 'Collections: —';
-  return `${collectionsCount} collection${collectionsCount === 1 ? '' : 's'}`;
 }
 
 function parseAgentLine(line: string): { agentCode: string; agentName: string } {
@@ -295,6 +291,7 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
 export function ReportsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent } = useApp();
+  const { t } = useI18n();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const today = useMemo(() => {
@@ -466,7 +463,12 @@ export function ReportsScreen() {
         lotLabel,
         fileType: fileTypeFromName(name, meta.extension),
         timeLabel: formatHistoryTimestamp(record.exportedAt ?? null, dateISO, meta.timeISO),
-        countLabel: formatCollectionsLabel(record.collectionsCount),
+        countLabel:
+          record.collectionsCount == null
+            ? t('reports.item.collectionsUnavailable')
+            : t('reports.item.collectionsCount', {
+                count: record.collectionsCount,
+              }),
         collectionsCount: record.collectionsCount,
         dateISO,
         exportedAtISO: record.exportedAt ?? null,
@@ -489,7 +491,12 @@ export function ReportsScreen() {
         lotLabel,
         fileType: fileTypeFromName(file.name, meta.extension),
         timeLabel: formatHistoryTimestamp(file.exportedAtISO, file.dateISO, meta.timeISO),
-        countLabel: formatCollectionsLabel(file.collectionsCount),
+        countLabel:
+          file.collectionsCount == null
+            ? t('reports.item.collectionsUnavailable')
+            : t('reports.item.collectionsCount', {
+                count: file.collectionsCount,
+              }),
         collectionsCount: file.collectionsCount,
         dateISO: file.dateISO,
         exportedAtISO: file.exportedAtISO,
@@ -498,7 +505,7 @@ export function ReportsScreen() {
     }
 
     return items;
-  }, [deviceFiles, exportRecords, selectedDate]);
+  }, [deviceFiles, exportRecords, selectedDate, t]);
 
   const historySummary = useMemo(() => {
     const savedFiles = historyItems.length;
@@ -515,17 +522,17 @@ export function ReportsScreen() {
   }, [historyFilter, historyItems]);
 
   const filterSubtitle = useMemo(() => {
-    if (historyFilter === 'known') return 'Showing files with known collection count.';
-    if (historyFilter === 'unknown') return 'Showing files where collection count is unavailable.';
-    return 'Exports saved on this device. Tap to view details.';
-  }, [historyFilter]);
+    if (historyFilter === 'known') return t('reports.history.subtitleKnown');
+    if (historyFilter === 'unknown') return t('reports.history.subtitleUnknown');
+    return t('reports.history.subtitleAll');
+  }, [historyFilter, t]);
 
   return (
     <ScrollScreen>
       <Card>
         <SectionHeader
-          title="History Filter"
-          subtitle="Select a date to view export history."
+          title={t('reports.filter.title')}
+          subtitle={t('reports.filter.subtitle')}
           icon="calendar-outline"
         />
         <View style={{ height: 5 }} />
@@ -588,7 +595,7 @@ export function ReportsScreen() {
 
       <Card>
         <SectionHeader
-          title={`History (${selectedDate})`}
+          title={t('reports.history.title', { date: selectedDate })}
           subtitle={filterSubtitle}
           icon="cloud-upload-outline"
         />
@@ -596,28 +603,38 @@ export function ReportsScreen() {
         <View style={styles.summaryRow}>
           <Pressable onPress={() => setHistoryFilter('all')} style={[styles.summaryTile, historyFilter === 'all' && styles.summaryTileActive]}>
             <Text style={[styles.summaryValue, historyFilter === 'all' && styles.summaryValueActive]}>{historySummary.savedFiles}</Text>
-            <Text style={[styles.summaryLabel, historyFilter === 'all' && styles.summaryLabelActive]}>Saved files</Text>
+            <Text style={[styles.summaryLabel, historyFilter === 'all' && styles.summaryLabelActive]}>
+              {t('reports.summary.savedFiles')}
+            </Text>
           </Pressable>
           <Pressable onPress={() => setHistoryFilter((prev) => (prev === 'known' ? 'all' : 'known'))} style={[styles.summaryTile, historyFilter === 'known' && styles.summaryTileActive]}>
             <Text style={[styles.summaryValue, historyFilter === 'known' && styles.summaryValueActive]}>{historySummary.knownCollections}</Text>
-            <Text style={[styles.summaryLabel, historyFilter === 'known' && styles.summaryLabelActive]}>Known collections ({historySummary.knownFiles})</Text>
+            <Text style={[styles.summaryLabel, historyFilter === 'known' && styles.summaryLabelActive]}>
+              {t('reports.summary.knownCollections', { count: historySummary.knownFiles })}
+            </Text>
           </Pressable>
           <Pressable onPress={() => setHistoryFilter((prev) => (prev === 'unknown' ? 'all' : 'unknown'))} style={[styles.summaryTile, historyFilter === 'unknown' && styles.summaryTileActive]}>
             <Text style={[styles.summaryValue, historyFilter === 'unknown' && styles.summaryValueActive]}>{historySummary.unknownCollections}</Text>
-            <Text style={[styles.summaryLabel, historyFilter === 'unknown' && styles.summaryLabelActive]}>Unknown count files</Text>
+            <Text style={[styles.summaryLabel, historyFilter === 'unknown' && styles.summaryLabelActive]}>
+              {t('reports.summary.unknownCountFiles')}
+            </Text>
           </Pressable>
         </View>
         <View style={{ height: 10 }} />
         {filteredHistoryItems.length === 0 ? (
           <EmptyState
             icon="cloud-offline-outline"
-            title={historyFilter === 'all' ? 'No history' : 'No matching files'}
+            title={
+              historyFilter === 'all'
+                ? t('reports.empty.noHistoryTitle')
+                : t('reports.empty.noMatchingFilesTitle')
+            }
             message={
               historyFilter === 'all'
-                ? 'No export files found for this date.'
+                ? t('reports.empty.noExportFilesForDate')
                 : historyFilter === 'known'
-                  ? 'No files with known collection count for this date.'
-                  : 'No files with unknown collection count for this date.'
+                  ? t('reports.empty.noKnownFilesForDate')
+                  : t('reports.empty.noUnknownFilesForDate')
             }
           />
         ) : (

@@ -4,19 +4,21 @@ import { AppProvider } from './src/appState/AppProvider';
 import { ThemedStatusBar } from './src/components/ThemedStatusBar';
 import { ThemeProvider } from './src/theme';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { I18nProvider } from './src/i18n';
 
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppProvider>
-          <RootNavigator />
-          <ThemedStatusBar />
-        </AppProvider>
+        <I18nProvider>
+          <AppProvider>
+            <RootNavigator />
+            <ThemedStatusBar />
+          </AppProvider>
+        </I18nProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
-
 

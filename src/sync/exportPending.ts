@@ -44,21 +44,19 @@ function shareMetaForFormat(format: ExportFormat): {
 }
 
 function compactNowForFilename(iso: string): string {
-  // 2026-02-08T18:51:12.345Z -> 20260208_185112_345Z
-  const date = iso.slice(0, 10).replace(/-/g, '');
-  const time = iso.slice(11, 19).replace(/:/g, '');
-  const millis = iso.slice(20, 23);
-  if (date.length === 8 && time.length === 6 && /^\d{3}$/.test(millis)) {
-    return `${date}_${time}_${millis}Z`;
-  }
-  if (date.length === 8 && time.length === 6) {
-    return `${date}_${time}Z`;
+  // 2026-02-08T18:51:12.345Z -> 20260208_185112Z
+  const match = iso.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/
+  );
+  if (match) {
+    const [, yyyy, mm, dd, hh, min, ss] = match;
+    return `${yyyy}${mm}${dd}_${hh}${min}${ss}Z`;
   }
   const fallback = iso.replace(/[^0-9]/g, '');
-  if (fallback.length >= 17) {
-    return `${fallback.slice(0, 8)}_${fallback.slice(8, 14)}_${fallback.slice(14, 17)}Z`;
+  if (fallback.length >= 14) {
+    return `${fallback.slice(0, 8)}_${fallback.slice(8, 14)}Z`;
   }
-  return `${fallback.slice(0, 8)}_${fallback.slice(8, 14)}Z`;
+  return `${fallback}Z`;
 }
 
 function sanitizeSegment(value: string): string {

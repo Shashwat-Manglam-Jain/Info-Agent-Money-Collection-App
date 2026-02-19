@@ -9,6 +9,7 @@ import type { AgentProfile } from '../models/types';
 import { useTheme } from '../theme';
 import type { Theme } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
+import { useClientNameLocalizer, useI18n } from '../i18n';
 import { Button } from './Button';
 import { Card } from './Card';
 import { Icon } from './Icon';
@@ -22,6 +23,8 @@ function profileKey(societyId: string, agentId: string): string {
 export function SocietySwitcherCard() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent, switchProfile } = useApp();
+  const { t } = useI18n();
+  const localizeName = useClientNameLocalizer();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [popup, setPopup] = useState<{ title: string; message?: string; actions?: PopupAction[] } | null>(null);
@@ -118,10 +121,13 @@ export function SocietySwitcherCard() {
         >
           <View style={styles.profileTextWrap}>
             <Text style={styles.profileTitle} numberOfLines={1}>
-              {item.society.name} ({item.society.code})
+              {localizeName(item.society.name)} ({item.society.code})
             </Text>
             <Text style={styles.profileSub} numberOfLines={1}>
-              Agent: {item.agent.code} • {item.agent.name}
+              {t('profile.item.agentLine', {
+                agentCode: item.agent.code,
+                agentName: localizeName(item.agent.name),
+              })}
             </Text>
           </View>
           <View
@@ -150,8 +156,8 @@ export function SocietySwitcherCard() {
   return (
     <Card>
       <SectionHeader
-        title="Company & Agent"
-        subtitle="Current profile"
+        title={t('profile.card.title')}
+        subtitle={t('profile.card.subtitle')}
         icon="business-outline"
         right={(
           <View style={styles.actionsRow}>
@@ -161,11 +167,11 @@ export function SocietySwitcherCard() {
               accessibilityLabel="Add society"
             >
               <Icon name="add-circle-outline" size={16} color={theme.colors.primary} />
-              <Text style={styles.switchText}>Add</Text>
+              <Text style={styles.switchText}>{t('profile.button.add')}</Text>
             </Pressable>
             <Pressable onPress={openSwitcher} style={styles.switchButton} accessibilityLabel="Change society">
               <Icon name="swap-horizontal-outline" size={16} color={theme.colors.primary} />
-              <Text style={styles.switchText}>Change</Text>
+              <Text style={styles.switchText}>{t('profile.button.change')}</Text>
             </Pressable>
           </View>
         )}
@@ -175,9 +181,9 @@ export function SocietySwitcherCard() {
           <Icon name="company" size={18} color={theme.colors.primary} />
         </View>
         <View style={styles.identityBody}>
-          <Text style={styles.identityLabel}>Company</Text>
+          <Text style={styles.identityLabel}>{t('labels.company')}</Text>
           <Text style={styles.identityName} numberOfLines={1}>
-            {society?.name ?? '—'}
+            {society?.name ? localizeName(society.name) : '—'}
           </Text>
         </View>
         <View style={styles.codeChip}>
@@ -190,9 +196,9 @@ export function SocietySwitcherCard() {
           <Icon name="agent" size={18} color={theme.colors.primary} />
         </View>
         <View style={styles.identityBody}>
-          <Text style={styles.identityLabel}>Agent</Text>
+          <Text style={styles.identityLabel}>{t('labels.agent')}</Text>
           <Text style={styles.identityName} numberOfLines={1}>
-            {agent?.name ?? '—'}
+            {agent?.name ? localizeName(agent.name) : '—'}
           </Text>
         </View>
         <View style={styles.codeChip}>

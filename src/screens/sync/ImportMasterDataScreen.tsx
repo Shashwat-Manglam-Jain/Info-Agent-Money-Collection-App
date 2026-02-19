@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import * as Crypto from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import type { DocumentPickerAsset } from 'expo-document-picker';
 import { File } from 'expo-file-system';
@@ -13,7 +14,17 @@ import { LoadingModal } from '../../components/LoadingModal';
 import { PopupModal, type PopupAction } from '../../components/PopupModal';
 import { ScrollScreen } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
-import { getAgentBySocietyAndCode, getRegistration, getSocietyByCode, listAccountLots } from '../../db/repo';
+import {
+  getAgentBySocietyAndCode,
+  getImportIdentityLock,
+  getRegistration,
+  getSocietyByCode,
+  hasImportedFileHash,
+  listAccountLots,
+  markImportedFileHash,
+  saveImportIdentityLock,
+} from '../../db/repo';
+import { useI18n } from '../../i18n';
 import type { ImportCategory, RootStackParamList } from '../../navigation/types';
 import { DEFAULT_AGENT_PIN, importParsedReport } from '../../sync/importAgentReport';
 import { parseAgentReportExcel } from '../../sync/parseAgentReportExcel';
@@ -24,12 +35,6 @@ import type { Theme } from '../../theme';
 import { lotKeyFromParts, lotLabel } from '../../utils/lots';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImportMasterData'>;
-
-function categoryLabel(category: ImportCategory): string {
-  if (category === 'daily') return 'Daily';
-  if (category === 'monthly') return 'Monthly';
-  return 'Loan';
-}
 
 function detectCategory(account: ParsedAccount): ImportCategory | null {
   if (account.accountType === 'LOAN') return 'loan';
@@ -96,7 +101,8 @@ async function readAssetBase64(asset: DocumentPickerAsset): Promise<string> {
 }
 
 export function ImportMasterDataScreen({ navigation, route }: Props) {
-  const { db, signIn, agent, setActiveLot } = useApp();
+  const { db, signIn, agent, society, setActiveLot } = useApp();
+  const { t } = useI18n();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [busy, setBusy] = useState(false);
@@ -106,7 +112,15 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
   const mode = route.params?.mode ?? 'replace';
   const category = route.params?.category;
   const isAddMode = mode === 'add';
-  const categoryText = category ? categoryLabel(category) : 'Account';
+  const localizedCategoryText =
+    category === 'daily'
+      ? t('import.category.daily')
+      : category === 'monthly'
+        ? t('import.category.monthly')
+        : category === 'loan'
+          ? t('import.category.loan')
+          : t('import.category.account');
+  const localizedCategoryLower = localizedCategoryText.toLowerCase();
 
   useEffect(() => {
     if (!pendingNavigation || !agent) return;
@@ -116,9 +130,13 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     navigation.setOptions({
-      title: category ? `Import ${categoryText} Data` : 'Import Account Data',
+      title: category
+        ? t('import.screen.navTitleCategory', {
+            category: localizedCategoryText,
+          })
+        : t('import.screen.navTitleDefault'),
     });
-  }, [category, categoryText, navigation]);
+  }, [category, localizedCategoryText, navigation, t]);
 
   useEffect(() => {
     if (!db) return;
@@ -155,7 +173,7 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
     setPopup({
       title,
       message,
-      actions: actions ?? [{ label: 'OK', onPress: closePopup }],
+      actions: actions ?? [{ label: t('common.ok'), onPress: closePopup }],
     });
   };
 
@@ -180,17 +198,87 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       if (!asset?.uri) throw new Error('No file selected');
 
       const isExcel = isExcelAsset(asset);
+      const fileContent = isExcel
+        ? await readAssetBase64(asset)
+        : await readAssetText(asset);
       const report = isExcel
-        ? parseAgentReportExcel(await readAssetBase64(asset))
-        : parseAgentReportText(await readAssetText(asset));
+        ? parseAgentReportExcel(fileContent)
+        : parseAgentReportText(fileContent);
+      const fileHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        `${isExcel ? 'excel' : 'text'}:${fileContent}`
+      );
+      const selectedSocietyCode = report.societyCode.trim().toUpperCase();
+      const selectedAgentCode = report.agentCode.trim().toUpperCase();
+      const signedInSocietyCode = society?.code.trim().toUpperCase() ?? null;
+      const signedInAgentCode = agent?.code.trim().toUpperCase() ?? null;
+      const importLock = await getImportIdentityLock(db);
+
+      if (
+        signedInSocietyCode &&
+        signedInAgentCode &&
+        (signedInSocietyCode !== selectedSocietyCode ||
+          signedInAgentCode !== selectedAgentCode)
+      ) {
+        showMessage(
+          t('import.popup.otherAgentFileTitle'),
+          t('import.popup.otherAgentFileMessage', {
+            registeredAgentCode: signedInAgentCode,
+            registeredSocietyCode: signedInSocietyCode,
+            selectedAgentCode,
+            selectedSocietyCode,
+          })
+        );
+        return;
+      }
+
+      if (
+        importLock &&
+        (importLock.societyCode !== selectedSocietyCode ||
+          importLock.agentCode !== selectedAgentCode)
+      ) {
+        showMessage(
+          t('import.popup.otherAgentFileTitle'),
+          t('import.popup.otherAgentFileMessage', {
+            registeredAgentCode: importLock.agentCode,
+            registeredSocietyCode: importLock.societyCode,
+            selectedAgentCode,
+            selectedSocietyCode,
+          })
+        );
+        return;
+      }
+
+      const alreadyImported = await hasImportedFileHash(db, {
+        societyCode: selectedSocietyCode,
+        agentCode: selectedAgentCode,
+        fileHash,
+      });
+      if (alreadyImported) {
+        showMessage(
+          t('import.popup.duplicateFileTitle'),
+          t('import.popup.duplicateFileMessage')
+        );
+        return;
+      }
 
       const firstAccount = report.accounts[0];
       if (category && !matchesCategory(firstAccount, category)) {
         const detected = detectCategory(firstAccount);
-        const detectedText = detected ? categoryLabel(detected) : 'a different';
+        const detectedText =
+          detected === 'daily'
+            ? t('import.category.daily')
+            : detected === 'monthly'
+              ? t('import.category.monthly')
+              : detected === 'loan'
+                ? t('import.category.loan')
+                : t('import.category.different');
         showMessage(
-          'Wrong file selected',
-          `This screen is for ${categoryText} data, but the selected file looks like ${detectedText} account data.\n\nPlease choose the correct file.`
+          t('import.popup.wrongFileTitle'),
+          t('import.popup.wrongFileMessage', {
+            expectedCategory: localizedCategoryText,
+            detectedCategory: detectedText,
+          })
         );
         return;
       }
@@ -211,8 +299,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
             const lots = await listAccountLots(db, existingSociety.id, existingAgent.id);
             if (lots.find((lot) => lot.key === newLotKey)) {
               showMessage(
-                'Account type already loaded',
-                `This account type is already loaded: ${newLotLabel}\n\nPlease select a different file (Daily/Monthly/Loan).`
+                t('import.popup.accountTypeLoadedTitle'),
+                t('import.popup.accountTypeLoadedMessage', { lotLabel: newLotLabel })
               );
               return;
             }
@@ -221,6 +309,15 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       }
 
       const result = await importParsedReport(db, report, { replaceExisting: mode !== 'add' });
+      await saveImportIdentityLock(db, {
+        societyCode: selectedSocietyCode,
+        agentCode: selectedAgentCode,
+      });
+      await markImportedFileHash(db, {
+        societyCode: selectedSocietyCode,
+        agentCode: selectedAgentCode,
+        fileHash,
+      });
 
       const signedIn = await signIn({
         societyCode: result.societyCode,
@@ -230,8 +327,13 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
 
       if (!signedIn) {
         showMessage(
-          'Imported, but sign in failed',
-          `Society: ${result.societyName} (${result.societyCode})\nAgent: ${result.agentCode}\nAccounts: ${result.accountsUpserted}\n\nTry signing in manually.`
+          t('import.popup.importedSignInFailedTitle'),
+          t('import.popup.importedSignInFailedMessage', {
+            societyName: result.societyName,
+            societyCode: result.societyCode,
+            agentCode: result.agentCode,
+            accountsUpserted: result.accountsUpserted,
+          })
         );
         return;
       }
@@ -245,15 +347,27 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
       });
 
       showMessage(
-        'Imported',
-        `Society: ${result.societyName} (${result.societyCode})\nAgent: ${result.agentCode}\nAccounts: ${result.accountsUpserted}\nType: ${newLotLabel}`,
+        t('import.popup.importedTitle'),
+        t('import.popup.importedMessage', {
+          societyName: result.societyName,
+          societyCode: result.societyCode,
+          agentCode: result.agentCode,
+          accountsUpserted: result.accountsUpserted,
+          lotLabel: newLotLabel,
+        }),
         [
-          { label: 'Stay', variant: 'ghost', onPress: closePopup },
-          { label: 'Open Dashboard', onPress: () => { closePopup(); setPendingNavigation(true); } },
+          { label: t('common.stay'), variant: 'ghost', onPress: closePopup },
+          {
+            label: t('common.openDashboard'),
+            onPress: () => {
+              closePopup();
+              setPendingNavigation(true);
+            },
+          },
         ]
       );
     } catch (e: unknown) {
-      showMessage('Import failed', getErrorMessage(e));
+      showMessage(t('import.popup.importFailedTitle'), getErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -263,28 +377,39 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
     <ScrollScreen>
       <Card>
         <SectionHeader
-          title={isAddMode ? `Add ${categoryText} Data (TXT or Excel)` : `Import ${categoryText} Data (TXT or Excel)`}
+          title={
+            isAddMode
+              ? t('import.screen.titleAdd', { category: localizedCategoryText })
+              : t('import.screen.titleImport', { category: localizedCategoryText })
+          }
           subtitle={
             isAddMode
-              ? `Add a new ${categoryText.toLowerCase()} file. Existing data stays. PIN is set to 0000.`
+              ? t('import.screen.subtitleAdd', {
+                  category: localizedCategoryLower,
+                })
               : category
-                ? `Import only ${categoryText.toLowerCase()} file data. Existing data is kept, and collections are removed only after export. PIN is set to 0000.`
-                : 'Import agent report data shared by your admin. Existing data is kept, and collections are removed only after export. PIN is set to 0000.'
+                ? t('import.screen.subtitleCategory', {
+                    category: localizedCategoryLower,
+                  })
+                : t('import.screen.subtitleAll')
           }
           icon="cloud-download-outline"
         />
         <Text style={styles.registered}>
           {registration
-            ? `Registered: ${registration.societyName} • ${registration.agentName}`
-            : 'Registration is optional. You can import without it.'}
+            ? t('import.screen.registered', {
+                societyName: registration.societyName,
+                agentName: registration.agentName,
+              })
+            : t('import.screen.registrationOptional')}
         </Text>
       </Card>
 
       <Card>
         <SectionHeader
-          title="Quick Import Guide"
+          title={t('import.screen.guideTitle')}
           icon="sparkles-outline"
-          subtitle="No fixed sample needed. The app auto-detects structure."
+          subtitle={t('import.screen.guideSubtitle')}
         />
 
         <View style={styles.guideHero}>
@@ -293,10 +418,14 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.guideHeroTitle}>
-              {isAddMode ? `Add ${categoryText} records safely` : `Import ${categoryText} records in one step`}
+              {isAddMode
+                ? t('import.screen.heroAddTitle', { category: localizedCategoryText })
+                : t('import.screen.heroImportTitle', {
+                    category: localizedCategoryText,
+                  })}
             </Text>
             <Text style={styles.guideHeroText}>
-              Pick a TXT/XLS/XLSX report and we automatically read headers, rows, and extra spaces.
+              {t('import.screen.heroText')}
             </Text>
           </View>
         </View>
@@ -322,8 +451,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
               <Text style={styles.stepBadgeText}>1</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>Choose file</Text>
-              <Text style={styles.stepText}>Select report shared by your admin from device storage.</Text>
+              <Text style={styles.stepTitle}>{t('import.screen.step1Title')}</Text>
+              <Text style={styles.stepText}>{t('import.screen.step1Text')}</Text>
             </View>
           </View>
           <View style={styles.stepRow}>
@@ -331,8 +460,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
               <Text style={styles.stepBadgeText}>2</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>Auto-parse</Text>
-              <Text style={styles.stepText}>The app validates account type and imports rows automatically.</Text>
+              <Text style={styles.stepTitle}>{t('import.screen.step2Title')}</Text>
+              <Text style={styles.stepText}>{t('import.screen.step2Text')}</Text>
             </View>
           </View>
           <View style={styles.stepRow}>
@@ -340,8 +469,8 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
               <Text style={styles.stepBadgeText}>3</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.stepTitle}>Start collecting</Text>
-              <Text style={styles.stepText}>Open dashboard immediately after successful import.</Text>
+              <Text style={styles.stepTitle}>{t('import.screen.step3Title')}</Text>
+              <Text style={styles.stepText}>{t('import.screen.step3Text')}</Text>
             </View>
           </View>
         </View>
@@ -349,7 +478,11 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
         <View style={styles.tipBox}>
           <Icon name="information-circle-outline" size={16} color={theme.colors.primary} />
           <Text style={styles.tipText}>
-            Import only {category ? `${categoryText.toLowerCase()} ` : ''}account files on this screen for best results.
+            {category
+              ? t('import.screen.tipCategory', {
+                  category: localizedCategoryLower,
+                })
+              : t('import.screen.tipAll')}
           </Text>
         </View>
       </Card>
@@ -359,17 +492,21 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
           <Button
             title={
               busy
-                ? 'Importing…'
+                ? t('import.screen.buttonImporting')
                 : isAddMode
-                  ? `Pick ${categoryText} File & Add`
-                  : `Pick ${categoryText} File & Import`
+                  ? t('import.screen.buttonPickAdd', {
+                      category: localizedCategoryText,
+                    })
+                  : t('import.screen.buttonPickImport', {
+                      category: localizedCategoryText,
+                    })
             }
             iconLeft="folder-open-outline"
             onPress={pickAndImport}
             disabled={busy}
           />
           <Button
-            title="Refresh Session"
+            title={t('import.screen.buttonRefreshSession')}
             variant="secondary"
             iconLeft="refresh-outline"
             onPress={() => {
@@ -382,7 +519,7 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
             disabled={busy}
           />
           <Button
-            title="Back"
+            title={t('import.screen.buttonBack')}
             variant="ghost"
             iconLeft="arrow-back-outline"
             onPress={handleBack}
@@ -398,7 +535,11 @@ export function ImportMasterDataScreen({ navigation, route }: Props) {
         actions={popup?.actions}
         onDismiss={closePopup}
       />
-      <LoadingModal visible={busy && !popup} title="Importing file" message="Reading the TXT/Excel data…" />
+      <LoadingModal
+        visible={busy && !popup}
+        title={t('import.screen.loadingTitle')}
+        message={t('import.screen.loadingMessage')}
+      />
     </ScrollScreen>
   );
 }

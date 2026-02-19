@@ -25,21 +25,17 @@ import {
   type ExportCategory,
   type ExportFormat,
 } from "../../sync/exportPending";
+import { useI18n } from "../../i18n";
 import { getErrorMessage } from "../../utils/errors";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 
 const exportCategories: ExportCategory[] = ["daily", "monthly", "loan"];
 
-function categoryLabel(category: ExportCategory | ImportCategory): string {
-  if (category === "daily") return "Daily";
-  if (category === "monthly") return "Monthly";
-  return "Loan";
-}
-
 export function SyncScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { db, society, agent, activeLot, signOut } = useApp();
+  const { t } = useI18n();
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [pendingCollections, setPendingCollections] = useState(0);
@@ -89,6 +85,12 @@ export function SyncScreen() {
     return parts[parts.length - 1] || uri;
   };
   const closePopup = () => setPopup(null);
+  const categoryLabel = (category: ExportCategory | ImportCategory): string =>
+    category === "daily"
+      ? t("import.category.daily")
+      : category === "monthly"
+        ? t("import.category.monthly")
+        : t("import.category.loan");
 
   const selectedExportCategory = useMemo<ExportCategory | null>(() => {
     if (!activeLot) return null;
@@ -144,7 +146,7 @@ export function SyncScreen() {
 
       setPopup({
         title: `${categoryLabel(category)} Exported`,
-        message: `Files: ${result.files.length}\n${filesInfo}\n\nClient data deleted for exported account types.\nSaved copy kept in export history.${shareNote}`,
+        message: `Files: ${result.files.length}\n${filesInfo}\n\n${t("sync.export.popup.clientDataDeleted")}\nSaved copy kept in export history.${shareNote}`,
         actions: [{ label: "OK", onPress: closePopup }],
       });
     } catch (e: unknown) {
@@ -206,7 +208,7 @@ export function SyncScreen() {
       <SocietySwitcherCard />
 
       <Card>
-        <SectionHeader title="Pending" icon="time-outline" />
+        <SectionHeader title={t("sync.pending.title")} icon="time-outline" />
         <View style={{ height: 10 }} />
         {loading ? (
           <View style={{ gap: 8 }}>
@@ -220,23 +222,29 @@ export function SyncScreen() {
           <View style={styles.pendingGrid}>
             <View style={styles.pendingTile}>
               <Text style={styles.pendingValue}>{pendingCollections}</Text>
-              <Text style={styles.pendingLabel}>Collections</Text>
+              <Text style={styles.pendingLabel}>
+                {t("sync.pending.collections")}
+              </Text>
             </View>
             <View style={styles.pendingTile}>
               <Text style={styles.pendingValue}>{pendingDaily}</Text>
-              <Text style={styles.pendingLabel}>Daily</Text>
+              <Text style={styles.pendingLabel}>{categoryLabel("daily")}</Text>
             </View>
             <View style={styles.pendingTile}>
               <Text style={styles.pendingValue}>{pendingMonthly}</Text>
-              <Text style={styles.pendingLabel}>Monthly</Text>
+              <Text style={styles.pendingLabel}>
+                {categoryLabel("monthly")}
+              </Text>
             </View>
             <View style={styles.pendingTile}>
               <Text style={styles.pendingValue}>{pendingLoan}</Text>
-              <Text style={styles.pendingLabel}>Loan</Text>
+              <Text style={styles.pendingLabel}>{categoryLabel("loan")}</Text>
             </View>
             <View style={styles.pendingTileWide}>
               <Text style={styles.pendingValue}>{accountCount}</Text>
-              <Text style={styles.pendingLabel}>Clients Loaded</Text>
+              <Text style={styles.pendingLabel}>
+                {t("sync.pending.clientsLoaded")}
+              </Text>
             </View>
           </View>
         )}
@@ -244,11 +252,13 @@ export function SyncScreen() {
 
       <Card>
         <SectionHeader
-          title="Export Separately"
+          title={t("sync.export.title")}
           subtitle={
             selectedExportCategory
-              ? `Selected in Collect: ${categoryLabel(selectedExportCategory)} (highlighted below).`
-              : "Export Daily, Monthly, and Loan files separately."
+              ? t("sync.export.subtitleSelected", {
+                  category: categoryLabel(selectedExportCategory),
+                })
+              : t("sync.export.subtitleDefault")
           }
           icon="share-outline"
         />
@@ -258,8 +268,11 @@ export function SyncScreen() {
             <Button
               title={
                 exportingCategory === category
-                  ? "Exporting…"
-                  : `Export ${categoryLabel(category)} (${pendingCountFor(category)})`
+                  ? t("sync.export.buttonExporting")
+                  : t("sync.export.buttonExport", {
+                      category: categoryLabel(category),
+                      count: pendingCountFor(category),
+                    })
               }
               variant={selectedExportCategory === category ? "primary" : "secondary"}
               disabled={
@@ -276,14 +289,16 @@ export function SyncScreen() {
 
       <Card>
         <SectionHeader
-          title="Import Separately"
+          title={t("sync.import.title")}
           subtitle="Choose the exact file type to avoid confusion."
           icon="cloud-download-outline"
         />
         <View style={{ height: 10 }} />
         <View style={styles.rowGap}>
           <Button
-            title="Import Daily File (TXT/Excel)"
+            title={t("sync.import.buttonWithFormat", {
+              label: t("actions.importDailyFile"),
+            })}
             iconLeft="cloud-download-outline"
             onPress={() =>
               nav.navigate("ImportMasterData", {
@@ -295,7 +310,9 @@ export function SyncScreen() {
         </View>
         <View style={styles.rowGap}>
           <Button
-            title="Import Monthly File (TXT/Excel)"
+            title={t("sync.import.buttonWithFormat", {
+              label: t("actions.importMonthlyFile"),
+            })}
             variant="secondary"
             iconLeft="cloud-download-outline"
             onPress={() =>
@@ -308,7 +325,9 @@ export function SyncScreen() {
         </View>
         <View style={styles.rowGap}>
           <Button
-            title="Import Loan File (TXT/Excel)"
+            title={t("sync.import.buttonWithFormat", {
+              label: t("actions.importLoanFile"),
+            })}
             variant="secondary"
             iconLeft="cloud-download-outline"
             onPress={() =>
@@ -324,7 +343,7 @@ export function SyncScreen() {
       <Card>
         {accountCount === 0 ? (
           <Button
-            title="Go to Login / Register"
+            title={t("sync.account.buttonGoToLoginRegister")}
             variant="secondary"
             iconLeft="log-in-outline"
             onPress={() => nav.navigate("Login")}
@@ -332,7 +351,7 @@ export function SyncScreen() {
         ) : null}
         <View style={{ height: accountCount === 0 ? 10 : 0 }} />
         <Button
-          title="Logout"
+          title={t("sync.account.buttonLogout")}
           variant="danger"
           iconLeft="log-out-outline"
           onPress={signOut}
