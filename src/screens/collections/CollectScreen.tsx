@@ -933,6 +933,9 @@ export function CollectScreen() {
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>
+                        {item.clientName}
+                      </Text>
+                      <Text style={styles.rowTitle}>
                         {item.accountNo}
                       </Text>
                       <Text style={styles.rowSub}>
