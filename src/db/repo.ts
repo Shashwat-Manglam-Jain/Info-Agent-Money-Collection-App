@@ -995,3 +995,70 @@ export async function clearClientDataByLots(
     }
   });
 }
+
+
+// //  new code by jay
+
+
+// // Add this function to your db/repo.ts file
+// export const getCollectionsByDate = async (
+//   db: SQLiteDatabase,
+//   societyId: string,
+//   agentId: string
+// ): Promise<Array<{
+//   date: string;
+//   totalAmount: number;
+//   count: number;
+//   categories: {
+//     daily: number;
+//     monthly: number;
+//     loan: number;
+//   };
+// }>> => {
+//   // This query assumes you have a collections table with date, amount, and category fields
+//   // Adjust the table and column names based on your actual database schema
+//   const query = `
+//     SELECT 
+//       date,
+//       SUM(amount) as totalAmount,
+//       COUNT(*) as count,
+//       SUM(CASE WHEN category = 'daily' THEN amount ELSE 0 END) as dailyAmount,
+//       SUM(CASE WHEN category = 'monthly' THEN amount ELSE 0 END) as monthlyAmount,
+//       SUM(CASE WHEN category = 'loan' THEN amount ELSE 0 END) as loanAmount
+//     FROM collections
+//     WHERE societyId = ? AND agentId = ?
+//     GROUP BY date
+//     ORDER BY date DESC
+//   `;
+  
+  
+//   const results = await db.executeSql(query, [societyId, agentId]);
+//   const rows = results[0].rows;
+  
+//   const collections: Array<{
+//     date: string;
+//     totalAmount: number;
+//     count: number;
+//     categories: {
+//       daily: number;
+//       monthly: number;
+//       loan: number;
+//     };
+//   }> = [];
+  
+//   for (let i = 0; i < rows.length; i++) {
+//     const item = rows.item(i);
+//     collections.push({
+//       date: item.date,
+//       totalAmount: item.totalAmount,
+//       count: item.count,
+//       categories: {
+//         daily: item.dailyAmount || 0,
+//         monthly: item.monthlyAmount || 0,
+//         loan: item.loanAmount || 0,
+//       },
+//     });
+//   }
+  
+//   return collections;
+// };

@@ -87,8 +87,8 @@ export const EN_TRANSLATIONS = {
   "profile.button.change": "Change",
   "profile.item.agentLine": "Agent: {{agentCode}} • {{agentName}}",
   "sync.pending.title": "Pending",
-  "sync.pending.collections": "Collections",
-  "sync.pending.clientsLoaded": "Clients Loaded",
+  "sync.pending.collections": "Total Collections",
+  "sync.pending.clientsLoaded": "All Clients",
   "sync.export.title": "Export Separately",
   "sync.export.subtitleSelected":
     "Selected in Collect: {{category}} (highlighted below).",
@@ -322,8 +322,8 @@ const HI_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "profile.button.change": "बदलें",
   "profile.item.agentLine": "एजेंट: {{agentCode}} • {{agentName}}",
   "sync.pending.title": "पेंडिंग",
-  "sync.pending.collections": "कलेक्शन",
-  "sync.pending.clientsLoaded": "लोड किए गए ग्राहक",
+  "sync.pending.collections": "कुल कलेक्शन राशि",
+  "sync.pending.clientsLoaded": "सभी ग्राहक",
   "sync.export.title": "अलग-अलग एक्सपोर्ट",
   "sync.export.subtitleSelected":
     "कलेक्ट में चयनित: {{category}} (नीचे हाइलाइट किया गया)।",
@@ -555,8 +555,8 @@ const MR_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "profile.button.change": "बदला",
   "profile.item.agentLine": "एजंट: {{agentCode}} • {{agentName}}",
   "sync.pending.title": "प्रलंबित",
-  "sync.pending.collections": "वसुली",
-  "sync.pending.clientsLoaded": "लोड केलेले ग्राहक",
+  "sync.pending.collections": "एकूण वसुली",
+  "sync.pending.clientsLoaded": "सर्व ग्राहक",
   "sync.export.title": "स्वतंत्र एक्सपोर्ट",
   "sync.export.subtitleSelected":
     "कलेक्टमध्ये निवडलेले: {{category}} (खाली हायलाइट केलेले).",
