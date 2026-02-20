@@ -1,4 +1,4 @@
-import { PropsWithChildren, ReactNode, useMemo } from "react";
+import { PropsWithChildren, ReactNode, useMemo, useState } from "react";
 import {
   Image,
   type ImageSourcePropType,
@@ -17,6 +17,8 @@ import { images } from "../assets/images";
 import { useI18n } from "../i18n";
 import { useTheme } from "../theme";
 import type { Theme } from "../theme";
+import { PopupModal } from "../components/PopupModal";
+import { Icon } from "../components/Icon";
 
 type Props = PropsWithChildren<{
   title: string;
@@ -36,7 +38,43 @@ export function AuthScreen({
 }: Props) {
   const theme = useTheme();
   const { language, setLanguage, options, t } = useI18n();
+  const [languageModalOpen, setLanguageModalOpen] = useState(false);
   const styles = useMemo(() => makeStyles(theme), [theme]);
+
+  // Get current language option
+  const currentLanguageOption = options.find(opt => opt.language === language) || options[0];
+
+  // Create actions for the PopupModal
+  const languageActions = options.map((option) => {
+    const isSelected = option.language === language;
+    
+    return {
+      label: isSelected 
+        ? `${t(option.labelKey)} (${t("common.selected")})` // Adds "(Selected)" text
+        : t(option.labelKey),
+      icon: option.icon,
+      onPress: () => {
+        setLanguage(option.language);
+        setLanguageModalOpen(false);
+      },
+      isSelected: isSelected,
+      // Style for selected item - green background
+      style: isSelected ? { 
+        backgroundColor: theme.colors.success, // Green background for selected
+        borderColor: theme.colors.success,
+      } : {
+        backgroundColor: theme.isDark ? '#2A2A2A' : '#F5F5F5', // Dark grey for dark mode, light grey for light mode
+        borderColor: theme.colors.border,
+      },
+      // Text style for selected item
+      textStyle: isSelected ? {
+        color: '#FFFFFF', // White text on green background
+        fontWeight: '600',
+      } : {
+        color: theme.colors.text,
+      },
+    };
+  });
 
   return (
     <LinearGradient
@@ -64,34 +102,32 @@ export function AuthScreen({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Language Selector */}
             <View style={styles.languageRow}>
-              {options.map((option) => {
-                const selected = option.language === language;
-                return (
-                  <Pressable
-                    key={option.language}
-                    onPress={() => setLanguage(option.language)}
-                    style={[
-                      styles.languageChip,
-                      selected ? styles.languageChipActive : undefined,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(option.labelKey)}
-                  >
-                    <Text
-                      style={[
-                        styles.languageChipText,
-                        selected ? styles.languageChipTextActive : undefined,
-                      ]}
-                    >
-                      {t(option.labelKey)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+              <Pressable
+                onPress={() => setLanguageModalOpen(true)}
+                style={styles.trigger}
+                accessibilityRole="button"
+                accessibilityLabel={t("navigation.language.accessibilityLabel")}
+              >
+                <Icon 
+                  name={currentLanguageOption.icon} 
+                  size={16} 
+                  color={theme.colors.primary} 
+                />
+                <Text style={styles.triggerText}>
+                  {t(currentLanguageOption.labelKey)}
+                </Text>
+              </Pressable>
 
-            {/* Remove the empty brand View completely */}
+              <PopupModal
+                visible={languageModalOpen}
+                title={t("navigation.language.modalTitle")}
+                message={t("navigation.language.modalMessage")}
+                actions={languageActions}
+                onDismiss={() => setLanguageModalOpen(false)}
+              />
+            </View>
 
             {heroImage ? (
               <View style={styles.heroImageContainer}>
@@ -167,39 +203,31 @@ const makeStyles = (theme: Theme) =>
       flexGrow: 1,
       padding: theme.spacing.xl,
       gap: 16,
-      // Add paddingTop to control spacing from top
-      paddingTop: theme.spacing.md, // Adjust this value as needed
+      paddingTop: theme.spacing.md,
     },
     languageRow: {
       width: "100%",
       flexDirection: "row",
       justifyContent: "flex-end",
-      gap: 8,
     },
-    languageChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 7,
+    trigger: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
       borderRadius: theme.radii.pill,
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.surfaceTint,
     },
-    languageChipActive: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primarySoft,
-    },
-    languageChipText: {
+    triggerText: {
       fontSize: 12,
       fontWeight: "800",
-      color: theme.colors.textSecondary,
-    },
-    languageChipTextActive: {
       color: theme.colors.primary,
     },
-    // Remove brand style completely
     heroImageContainer: {
-      // Add any container styles if needed
-      marginTop: 0, // Ensure no top margin
+      marginTop: 0,
     },
     heroImage: {
       width: "100%",
