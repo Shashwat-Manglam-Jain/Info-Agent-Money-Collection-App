@@ -340,12 +340,6 @@
 //     },
 //   });
 
-
-
-
-
-
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -731,8 +725,6 @@ export function CollectScreen() {
 
       <SocietySwitcherCard />
 
-  
-
       {/* ACCOUNT TYPE */}
       <Card>
         <SectionHeader
@@ -932,12 +924,37 @@ export function CollectScreen() {
                     style={styles.row}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>
-                        {item.accountNo}
-                      </Text>
-                      <Text style={styles.rowSub}>
-                        {formatINR(item.collectedPaise)} • {item.collectionDate}
-                      </Text>
+                      <View style={styles.pendingItemHeader}>
+                        <View style={styles.pendingClientLine}>
+                          <Icon name="person-outline" size={14} color={theme.colors.primary} />
+                          <Text style={styles.rowTitle}>
+                            {localizeClientName(item.clientName)}
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.pendingAccountChip}>
+                          <Icon name="card-outline" size={12} color={theme.colors.primary} />
+                          <Text style={styles.pendingAccountText}>
+                            {item.accountNo}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.pendingDetails}>
+                        <View style={styles.pendingDetailItem}>
+                          <Icon name="cash-outline" size={12} color={theme.colors.success} />
+                          <Text style={[styles.rowSub, styles.pendingAmount]}>
+                            {formatINR(item.collectedPaise)}
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.pendingDetailItem}>
+                          <Icon name="calendar-outline" size={12} color={theme.colors.muted} />
+                          <Text style={styles.rowSub}>
+                            {item.collectionDate}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
                   </Pressable>
                 )}
@@ -1220,4 +1237,52 @@ const makeStyles = (theme: Theme) =>
     progressFill: { height: '100%', backgroundColor: theme.colors.primary },
 
     kv: { marginTop: 6, fontSize: 13, color: theme.colors.text },
+    
+    // New styles for pending items with icons
+    pendingItemHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    pendingClientLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flex: 1,
+    },
+    pendingAccountChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radii.pill,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.primarySoft,
+    },
+    pendingAccountText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.primary,
+    },
+    pendingDetails: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      marginLeft: 20, // Aligns with the client name icon
+    },
+    pendingDetailItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    pendingAmount: {
+      fontWeight: '700',
+      color: theme.colors.success,
+    },
   });
+
+
+
