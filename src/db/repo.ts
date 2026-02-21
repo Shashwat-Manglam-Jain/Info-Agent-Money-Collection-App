@@ -854,22 +854,48 @@ export async function listExportsForDate(params: {
   return rows.map(mapExport);
 }
 
+
+// old code 
+// export async function listPendingCollections(params: {
+//   db: SQLiteDatabase;
+//   societyId: string;
+//   agentId: string;
+// }): Promise<ExportCollectionRow[]> {
+//   const rows = await params.db.getAllAsync<any>(
+//     `SELECT c.*, a.client_name, a.account_head, a.account_head_code, a.account_type, a.frequency
+//      FROM collections c
+//      JOIN accounts a ON a.id = c.account_id
+//      WHERE c.society_id = ? AND c.agent_id = ? AND c.status = 'PENDING'
+//      ORDER BY c.collected_at ASC;`,
+//     params.societyId,
+//     params.agentId
+//   );
+//   return rows.map(mapExportCollection);
+// }
+
+
+// new code by jay
 export async function listPendingCollections(params: {
   db: SQLiteDatabase;
   societyId: string;
   agentId: string;
 }): Promise<ExportCollectionRow[]> {
+
   const rows = await params.db.getAllAsync<any>(
     `SELECT c.*, a.client_name, a.account_head, a.account_head_code, a.account_type, a.frequency
      FROM collections c
      JOIN accounts a ON a.id = c.account_id
-     WHERE c.society_id = ? AND c.agent_id = ? AND c.status = 'PENDING'
-     ORDER BY c.collected_at ASC;`,
+     WHERE c.society_id = ?
+       AND c.agent_id = ?
+       AND c.status = 'PENDING'
+     ORDER BY c.collected_at DESC;`,   // ✅ CHANGE HERE
     params.societyId,
     params.agentId
   );
+
   return rows.map(mapExportCollection);
 }
+
 
 export async function markExported(params: {
   db: SQLiteDatabase;

@@ -201,9 +201,9 @@ const makeStyles = (theme: Theme) =>
     },
     container: {
       flexGrow: 1,
-      padding: theme.spacing.xl,
-      gap: 16,
-      paddingTop: theme.spacing.md,
+      padding: theme.spacing.md,
+      gap: 1,
+      paddingTop: 1,
     },
     languageRow: {
       width: "100%",

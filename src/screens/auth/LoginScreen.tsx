@@ -159,6 +159,7 @@ const makeStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       width: "100%",
+      // paddingTop:20
     },
     poweredByLine: {
       flex: 1,

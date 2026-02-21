@@ -157,6 +157,8 @@ function buildExportViewDefaults(): ExportView {
 
 async function parseExportFile(fileUri: string, fileName: string): Promise<ExportView> {
   const lower = fileName.toLowerCase();
+  
+  // PDF files ke liye - collections count bhi nikaalo
   if (lower.endsWith('.pdf')) {
     const view = buildExportViewDefaults();
     const meta = parseExportFileName(fileName);
@@ -166,9 +168,34 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
     if (meta.lotCode) {
       view.lotLabel = meta.lotCode;
     }
+    
+    // PDF file ka content parse karo to get collections count
+    try {
+      const fileContent = await new File(fileUri).text();
+      // Parse PDF text to find collections count
+      const countMatch = fileContent.match(/Collections:\s*(\d+)/i);
+      if (countMatch && countMatch[1]) {
+        const count = parseInt(countMatch[1], 10);
+        if (!isNaN(count)) {
+          // Create dummy collections to show count
+          view.collections = Array(count).fill(null).map((_, idx) => ({
+            id: `${fileName}-dummy-${idx}`,
+            accountNo: '',
+            clientName: '',
+            collectedPaise: 0,
+            collectionDate: '',
+            remarks: null,
+          }));
+        }
+      }
+    } catch (error) {
+      console.log('Could not parse PDF content:', error);
+    }
+    
     return view;
   }
 
+  // JSON files
   if (lower.endsWith('.json')) {
     const text = await new File(fileUri).text();
     const payload = JSON.parse(text) as any;
@@ -189,6 +216,8 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
       : [];
     return view;
   }
+  
+  // Excel files
   if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
     const base64 = await new File(fileUri).base64();
     const workbook = XLSX.read(base64, { type: 'base64' });
@@ -196,11 +225,13 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
     const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: false, blankrows: false });
     const view = buildExportViewDefaults();
     let headerIndex = -1;
+    let dataStarted = false;
 
     for (let i = 0; i < rows.length; i += 1) {
       const row = rows[i] || [];
       const first = String(row[0] ?? '').trim();
       if (!first) continue;
+      
       if (/^society:/i.test(first)) view.societyName = first.replace(/^society:/i, '').trim();
       if (/^agent:/i.test(first)) {
         const parsed = parseAgentLine(first);
@@ -209,6 +240,12 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
       }
       if (/^exported at:/i.test(first)) view.exportedAt = first.replace(/^exported at:/i, '').trim();
       if (/^lot:/i.test(first)) view.lotLabel = first.replace(/^lot:/i, '').trim();
+      if (/collections:/i.test(first)) {
+        const countMatch = first.match(/(\d+)/);
+        if (countMatch) {
+          // We'll get actual data later
+        }
+      }
       if (/account\s*no/i.test(first)) {
         headerIndex = i;
         break;
@@ -219,7 +256,11 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
       for (let i = headerIndex + 1; i < rows.length; i += 1) {
         const row = rows[i] || [];
         const accountNo = String(row[0] ?? '').trim();
-        if (!accountNo) break;
+        if (!accountNo || /total/i.test(accountNo)) {
+          if (dataStarted) break;
+          continue;
+        }
+        dataStarted = true;
         const clientName = String(row[1] ?? '').trim();
         const amountRaw = String(row[6] ?? '').trim();
         const collectionDate = String(row[8] ?? '').trim();
@@ -239,11 +280,13 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
     return view;
   }
 
+  // TXT files
   if (lower.endsWith('.txt')) {
     const text = await new File(fileUri).text();
     const lines = text.split(/\r?\n/).filter((line) => line.trim());
     const view = buildExportViewDefaults();
     let headerIndex = -1;
+    let dataStarted = false;
 
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i];
@@ -255,6 +298,12 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
       }
       if (/^exported at:/i.test(line)) view.exportedAt = line.replace(/^exported at:/i, '').trim();
       if (/^lot:/i.test(line)) view.lotLabel = line.replace(/^lot:/i, '').trim();
+      if (/collections:/i.test(line)) {
+        const countMatch = line.match(/(\d+)/);
+        if (countMatch) {
+          // We'll get actual data later
+        }
+      }
       if (/account\s*no/i.test(line)) {
         headerIndex = i;
         break;
@@ -265,7 +314,11 @@ async function parseExportFile(fileUri: string, fileName: string): Promise<Expor
       for (let i = headerIndex + 1; i < lines.length; i += 1) {
         const row = lines[i].split('\t');
         const accountNo = (row[0] ?? '').trim();
-        if (!accountNo) break;
+        if (!accountNo || /total/i.test(accountNo)) {
+          if (dataStarted) break;
+          continue;
+        }
+        dataStarted = true;
         const clientName = (row[1] ?? '').trim();
         const amountRaw = (row[6] ?? '').trim();
         const collectionDate = (row[8] ?? '').trim();
