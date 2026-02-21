@@ -45,13 +45,14 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {
-        "projectId": "ce2deb38-4b45-4f7c-a01a-82efcfab5bb8"
+        "projectId": "178cda29-a19b-4847-b6f2-5d8744e3a72a"
       }
     },
-    "owner": "shashwat100k"
+    "owner": "jay123y"
   }
 }

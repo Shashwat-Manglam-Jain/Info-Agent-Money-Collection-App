@@ -37,7 +37,7 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: systemTheme,
-  mode: 'system',
+  mode: 'ocean',
   setMode: () => {},
   toggleTheme: () => {},
   options: THEME_OPTIONS,
@@ -70,9 +70,9 @@ async function setStoredValue(key: string, value: string): Promise<void> {
 
 function getInitialThemeMode(): ThemeMode {
   const webStorage = getWebStorage();
-  if (!webStorage) return 'system';
+  if (!webStorage) return 'ocean';
   const raw = webStorage.getItem(THEME_MODE_KEY);
-  if (!raw || !isThemeMode(raw)) return 'system';
+  if (!raw || !isThemeMode(raw)) return 'ocean';
   return raw;
 }
 

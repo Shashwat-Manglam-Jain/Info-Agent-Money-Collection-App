@@ -195,36 +195,7 @@ export function AccountDetailScreen({ route, navigation }: Props) {
 
   return (
     <ScrollScreen>
-      <Card>
-        <Text style={styles.title}>{localizeClientName(account.clientName)}</Text>
-        <Text style={styles.sub}>
-          {account.accountType === 'LOAN'
-            ? t('import.category.loan')
-            : localizeClientName(account.accountType)}{' '}
-          •{' '}
-          {account.frequency === 'DAILY'
-            ? t('import.category.daily')
-            : account.frequency === 'MONTHLY'
-              ? t('import.category.monthly')
-              : localizeClientName(account.frequency)}
-        </Text>
-        <View style={{ height: 10 }} />
-        <Text style={styles.kv}>Account No: {account.accountNo}</Text>
-        <Text style={styles.kv}>
-          Account Head: {account.accountHead ? localizeClientName(account.accountHead) : '—'}
-          {account.accountHeadCode ? ` (${account.accountHeadCode})` : ''}
-        </Text>
-        <Text style={styles.kv}>
-          Installment: {account.installmentPaise > 0 ? formatINR(account.installmentPaise) : '—'}
-        </Text>
-        <Text style={styles.kv}>
-          Balance: {formatINR(account.balancePaise)} {account.accountType === 'LOAN' ? '(outstanding)' : ''}
-        </Text>
-        <Text style={styles.kv}>Last Txn: {account.lastTxnAt ?? '—'}</Text>
-        <Text style={styles.kv}>
-          Opening: {account.openedAt ?? '—'} • Closing: {account.closesAt ?? '—'}
-        </Text>
-      </Card>
+     
 
       <Card>
         <SectionHeader
@@ -293,6 +264,36 @@ export function AccountDetailScreen({ route, navigation }: Props) {
         actions={popup?.actions}
         onDismiss={closePopup}
       />
+       <Card>
+        <Text style={styles.title}>{localizeClientName(account.clientName)}</Text>
+        <Text style={styles.sub}>
+          {account.accountType === 'LOAN'
+            ? t('import.category.loan')
+            : localizeClientName(account.accountType)}{' '}
+          •{' '}
+          {account.frequency === 'DAILY'
+            ? t('import.category.daily')
+            : account.frequency === 'MONTHLY'
+              ? t('import.category.monthly')
+              : localizeClientName(account.frequency)}
+        </Text>
+        <View style={{ height: 10 }} />
+        <Text style={styles.kv}>Account No: {account.accountNo}</Text>
+        <Text style={styles.kv}>
+          Account Head: {account.accountHead ? localizeClientName(account.accountHead) : '—'}
+          {account.accountHeadCode ? ` (${account.accountHeadCode})` : ''}
+        </Text>
+        <Text style={styles.kv}>
+          Installment: {account.installmentPaise > 0 ? formatINR(account.installmentPaise) : '—'}
+        </Text>
+        <Text style={styles.kv}>
+          Balance: {formatINR(account.balancePaise)} {account.accountType === 'LOAN' ? '(outstanding)' : ''}
+        </Text>
+        <Text style={styles.kv}>Last Txn: {account.lastTxnAt ?? '—'}</Text>
+        <Text style={styles.kv}>
+          Opening: {account.openedAt ?? '—'} • Closing: {account.closesAt ?? '—'}
+        </Text>
+      </Card>
     </ScrollScreen>
   );
 }

@@ -340,23 +340,36 @@
 //     },
 //   });
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FlatList,
+  Keyboard,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import { useApp } from '../../appState/AppProvider';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { EmptyState } from '../../components/EmptyState';
-import { Icon } from '../../components/Icon';
-import { Skeleton } from '../../components/Skeleton';
-import { ScrollScreen } from '../../components/Screen';
-import { SectionHeader } from '../../components/SectionHeader';
-import { SocietySwitcherCard } from '../../components/SocietySwitcherCard';
-import { TextField } from '../../components/TextField';
-import type { RootStackParamList } from '../../navigation/types';
-import type { Account, AccountLot, ExportCollectionRow } from '../../models/types';
+import { useApp } from "../../appState/AppProvider";
+import { Button } from "../../components/Button";
+import { Card } from "../../components/Card";
+import { EmptyState } from "../../components/EmptyState";
+import { Icon } from "../../components/Icon";
+import { Skeleton } from "../../components/Skeleton";
+import { ScrollScreen } from "../../components/Screen";
+import { SectionHeader } from "../../components/SectionHeader";
+import { SocietySwitcherCard } from "../../components/SocietySwitcherCard";
+import { TextField } from "../../components/TextField";
+import type { RootStackParamList } from "../../navigation/types";
+import type {
+  Account,
+  AccountLot,
+  ExportCollectionRow,
+} from "../../models/types";
 
 import {
   getAccountCount,
@@ -364,15 +377,15 @@ import {
   listAccountLots,
   listPendingCollections,
   searchAccountsByLastDigits,
-} from '../../db/repo';
+} from "../../db/repo";
 
-import { formatINR } from '../../utils/money';
-import { useTheme } from '../../theme';
-import type { Theme } from '../../theme';
-import { lotKeyFromParts, lotLabel } from '../../utils/lots';
-import { useClientNameLocalizer, useI18n } from '../../i18n';
+import { formatINR } from "../../utils/money";
+import { useTheme } from "../../theme";
+import type { Theme } from "../../theme";
+import { lotKeyFromParts, lotLabel } from "../../utils/lots";
+import { useClientNameLocalizer, useI18n } from "../../i18n";
 
-const ALL_LOT_KEY = '__all__';
+const ALL_LOT_KEY = "__all__";
 
 type LotOption = {
   key: string;
@@ -389,17 +402,20 @@ export function CollectScreen() {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
-  const [digits, setDigits] = useState('');
+  const [digits, setDigits] = useState("");
   const [results, setResults] = useState<Account[]>([]);
   const [lots, setLots] = useState<AccountLot[]>([]);
-  const [pendingEntries, setPendingEntries] = useState<ExportCollectionRow[]>([]);
+  const [pendingEntries, setPendingEntries] = useState<ExportCollectionRow[]>(
+    [],
+  );
   const [pendingTotal, setPendingTotal] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [totalAccounts, setTotalAccounts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lotSwitcherVisible, setLotSwitcherVisible] = useState(false);
-  const [lotQuery, setLotQuery] = useState('');
-  const [pendingLotSelection, setPendingLotSelection] = useState<string>(ALL_LOT_KEY);
+  const [lotQuery, setLotQuery] = useState("");
+  const [pendingLotSelection, setPendingLotSelection] =
+    useState<string>(ALL_LOT_KEY);
 
   const refreshPending = useCallback(async () => {
     if (!db || !agent || !society) return;
@@ -422,12 +438,21 @@ export function CollectScreen() {
       const visiblePending = activeLot
         ? allPending.filter(
             (entry) =>
-              lotKeyFromParts(entry.accountHeadCode, entry.accountType, entry.frequency) === activeLot.key
+              lotKeyFromParts(
+                entry.accountHeadCode,
+                entry.accountType,
+                entry.frequency,
+              ) === activeLot.key,
           )
         : allPending;
 
       setPendingEntries(visiblePending);
-      setPendingTotal(visiblePending.reduce((total, entry) => total + entry.collectedPaise, 0));
+      setPendingTotal(
+        visiblePending.reduce(
+          (total, entry) => total + entry.collectedPaise,
+          0,
+        ),
+      );
       setPendingCount(visiblePending.length);
       setTotalAccounts(accountCount);
       setLots(lotRows);
@@ -436,7 +461,11 @@ export function CollectScreen() {
     }
   }, [db, agent, society, activeLot]);
 
-  useFocusEffect(useCallback(() => { void refreshPending(); }, [refreshPending]));
+  useFocusEffect(
+    useCallback(() => {
+      void refreshPending();
+    }, [refreshPending]),
+  );
 
   const remainingCount = Math.max(totalAccounts - pendingCount, 0);
 
@@ -455,7 +484,7 @@ export function CollectScreen() {
         db,
         society.id,
         agent.id,
-        digits
+        digits,
       );
 
       setResults(r);
@@ -471,11 +500,8 @@ export function CollectScreen() {
 
     return results.filter(
       (a) =>
-        lotKeyFromParts(
-          a.accountHeadCode,
-          a.accountType,
-          a.frequency
-        ) === activeLot.key
+        lotKeyFromParts(a.accountHeadCode, a.accountType, a.frequency) ===
+        activeLot.key,
     );
   }, [results, activeLot]);
 
@@ -483,33 +509,33 @@ export function CollectScreen() {
     (params: {
       accountHead?: string | null;
       accountHeadCode?: string | null;
-      accountType: AccountLot['accountType'];
-      frequency: AccountLot['frequency'];
+      accountType: AccountLot["accountType"];
+      frequency: AccountLot["frequency"];
     }): string => localizeClientName(lotLabel(params)),
-    [localizeClientName]
+    [localizeClientName],
   );
 
   const frequencyLabel = useCallback(
-    (frequency: Account['frequency']): string => {
-      if (frequency === 'DAILY') return t('import.category.daily');
-      if (frequency === 'MONTHLY') return t('import.category.monthly');
+    (frequency: Account["frequency"]): string => {
+      if (frequency === "DAILY") return t("import.category.daily");
+      if (frequency === "MONTHLY") return t("import.category.monthly");
       return localizeClientName(frequency);
     },
-    [localizeClientName, t]
+    [localizeClientName, t],
   );
 
   const accountTypeLabel = useCallback(
-    (accountType: Account['accountType']): string => {
-      if (accountType === 'LOAN') return t('import.category.loan');
+    (accountType: Account["accountType"]): string => {
+      if (accountType === "LOAN") return t("import.category.loan");
       return localizeClientName(accountType);
     },
-    [localizeClientName, t]
+    [localizeClientName, t],
   );
 
   const currentLotKey = activeLot?.key ?? ALL_LOT_KEY;
   const currentLotLabel = activeLot
     ? formatLotDisplayLabel(activeLot)
-    : t('accounts.filter.allAccountTypes');
+    : t("accounts.filter.allAccountTypes");
   const currentLotCount = activeLot
     ? (lots.find((lot) => lot.key === activeLot.key)?.count ?? 0)
     : lots.reduce((total, lot) => total + lot.count, 0);
@@ -518,7 +544,7 @@ export function CollectScreen() {
     () => [
       {
         key: ALL_LOT_KEY,
-        label: t('accounts.filter.allAccountTypes'),
+        label: t("accounts.filter.allAccountTypes"),
         count: lots.reduce((total, lot) => total + lot.count, 0),
       },
       ...lots.map((lot) => ({
@@ -532,24 +558,26 @@ export function CollectScreen() {
         count: lot.count,
       })),
     ],
-    [formatLotDisplayLabel, lots, t]
+    [formatLotDisplayLabel, lots, t],
   );
 
   const filteredLotOptions = useMemo(() => {
     const q = lotQuery.trim().toLowerCase();
     if (!q) return lotOptions;
-    return lotOptions.filter((option) => `${option.label} ${option.key}`.toLowerCase().includes(q));
+    return lotOptions.filter((option) =>
+      `${option.label} ${option.key}`.toLowerCase().includes(q),
+    );
   }, [lotOptions, lotQuery]);
 
   const openLotSwitcher = useCallback(() => {
     setPendingLotSelection(currentLotKey);
-    setLotQuery('');
+    setLotQuery("");
     setLotSwitcherVisible(true);
   }, [currentLotKey]);
 
   const closeLotSwitcher = useCallback(() => {
     setLotSwitcherVisible(false);
-    setLotQuery('');
+    setLotQuery("");
   }, []);
 
   const applyLotSelection = useCallback(async () => {
@@ -576,7 +604,13 @@ export function CollectScreen() {
       frequency: selected.frequency,
     });
     closeLotSwitcher();
-  }, [closeLotSwitcher, currentLotKey, lots, pendingLotSelection, setActiveLot]);
+  }, [
+    closeLotSwitcher,
+    currentLotKey,
+    lots,
+    pendingLotSelection,
+    setActiveLot,
+  ]);
 
   const canApplyLotSelection = pendingLotSelection !== currentLotKey;
 
@@ -598,7 +632,7 @@ export function CollectScreen() {
               {item.label}
             </Text>
             <Text style={styles.lotRowSub}>
-              {t('collect.accountType.accountsCount', { count: item.count })}
+              {t("collect.accountType.accountsCount", { count: item.count })}
             </Text>
           </View>
           <View
@@ -616,16 +650,16 @@ export function CollectScreen() {
               ]}
             >
               {isCurrent
-                ? t('collect.accountType.current')
+                ? t("collect.accountType.current")
                 : isSelected
-                  ? t('collect.accountType.selected')
-                  : t('collect.accountType.tap')}
+                  ? t("collect.accountType.selected")
+                  : t("collect.accountType.tap")}
             </Text>
           </View>
         </Pressable>
       );
     },
-    [currentLotKey, pendingLotSelection, styles, t]
+    [currentLotKey, pendingLotSelection, styles, t],
   );
 
   const collectionProgress =
@@ -636,22 +670,28 @@ export function CollectScreen() {
 
   const openAccount = (id: string) => {
     Keyboard.dismiss();
-    nav.navigate('AccountDetail', { accountId: id });
+    nav.navigate("AccountDetail", { accountId: id });
   };
+  const sortedPendingEntries = useMemo(() => {
+    return [...pendingEntries].sort(
+      (a, b) =>
+        new Date(b.collectionDate).getTime() -
+        new Date(a.collectionDate).getTime(),
+    );
+  }, [pendingEntries]);
 
   /* ------------------ UI ------------------ */
 
   return (
     <ScrollScreen>
-
-    {/* SEARCH TOP */}
+      {/* SEARCH TOP */}
       <Card>
         <TextField
-          label={t('collect.search.label')}
+          label={t("collect.search.label")}
           value={digits}
-          onChangeText={(v) => setDigits(v.replace(/[^0-9]/g, ''))}
+          onChangeText={(v) => setDigits(v.replace(/[^0-9]/g, ""))}
           keyboardType="number-pad"
-          placeholder={t('collect.search.placeholder')}
+          placeholder={t("collect.search.placeholder")}
           leftIcon="search-outline"
         />
       </Card>
@@ -660,8 +700,8 @@ export function CollectScreen() {
       {digits ? (
         <Card>
           <SectionHeader
-            title={t('collect.search.matchesTitle')}
-            subtitle={t('collect.search.matchesSubtitle', { digits })}
+            title={t("collect.search.matchesTitle")}
+            subtitle={t("collect.search.matchesSubtitle", { digits })}
             icon="list-outline"
           />
 
@@ -670,8 +710,8 @@ export function CollectScreen() {
           {filteredResults.length === 0 ? (
             <EmptyState
               icon="search-outline"
-              title={t('collect.search.noMatchesTitle')}
-              message={t('collect.search.noMatchesMessage')}
+              title={t("collect.search.noMatchesTitle")}
+              message={t("collect.search.noMatchesMessage")}
             />
           ) : (
             <FlatList
@@ -679,9 +719,7 @@ export function CollectScreen() {
               data={filteredResults}
               keyExtractor={(a) => a.id}
               scrollEnabled={false}
-              ItemSeparatorComponent={() => (
-                <View style={styles.sep} />
-              )}
+              ItemSeparatorComponent={() => <View style={styles.sep} />}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => openAccount(item.id)}
@@ -695,24 +733,19 @@ export function CollectScreen() {
                           size={15}
                           color={theme.colors.primary}
                         />
-                        <Text
-                          style={styles.rowTitle}
-                          numberOfLines={1}
-                        >
+                        <Text style={styles.rowTitle} numberOfLines={1}>
                           {localizeClientName(item.clientName)}
                         </Text>
                       </View>
 
-                      <Text style={styles.accountChip}>
-                        {item.accountNo}
-                      </Text>
+                      <Text style={styles.accountChip}>{item.accountNo}</Text>
                     </View>
 
                     <Text style={styles.rowSub}>
-                      {(item.accountHead
+                      {item.accountHead
                         ? localizeClientName(item.accountHead)
-                        : accountTypeLabel(item.accountType))}{' '}
-                      • {frequencyLabel(item.frequency)} • Balance{' '}
+                        : accountTypeLabel(item.accountType)}{" "}
+                      • {frequencyLabel(item.frequency)} • Balance{" "}
                       {formatINR(item.balancePaise)}
                     </Text>
                   </View>
@@ -728,29 +761,45 @@ export function CollectScreen() {
       {/* ACCOUNT TYPE */}
       <Card>
         <SectionHeader
-          title={t('collect.accountType.title')}
-          subtitle={t('collect.accountType.subtitle')}
+          title={t("collect.accountType.title")}
+          subtitle={t("collect.accountType.subtitle")}
           icon="layers-outline"
-          right={(
+          right={
             <View style={styles.accountTypeActions}>
               <Pressable
-                onPress={() => nav.navigate('ImportMasterData', { mode: 'add' })}
+                onPress={() =>
+                  nav.navigate("ImportMasterData", { mode: "add" })
+                }
                 style={styles.accountTypeButton}
-                accessibilityLabel={t('collect.accountType.accessibilityAdd')}
+                accessibilityLabel={t("collect.accountType.accessibilityAdd")}
               >
-                <Icon name="add-circle-outline" size={16} color={theme.colors.primary} />
-                <Text style={styles.accountTypeButtonText}>{t('collect.accountType.buttonAdd')}</Text>
+                <Icon
+                  name="add-circle-outline"
+                  size={16}
+                  color={theme.colors.primary}
+                />
+                <Text style={styles.accountTypeButtonText}>
+                  {t("collect.accountType.buttonAdd")}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={openLotSwitcher}
                 style={styles.accountTypeButton}
-                accessibilityLabel={t('collect.accountType.accessibilityChange')}
+                accessibilityLabel={t(
+                  "collect.accountType.accessibilityChange",
+                )}
               >
-                <Icon name="swap-horizontal-outline" size={16} color={theme.colors.primary} />
-                <Text style={styles.accountTypeButtonText}>{t('collect.accountType.buttonChange')}</Text>
+                <Icon
+                  name="swap-horizontal-outline"
+                  size={16}
+                  color={theme.colors.primary}
+                />
+                <Text style={styles.accountTypeButtonText}>
+                  {t("collect.accountType.buttonChange")}
+                </Text>
               </Pressable>
             </View>
-          )}
+          }
         />
 
         <View style={{ height: 10 }} />
@@ -760,10 +809,16 @@ export function CollectScreen() {
         ) : (
           <View style={styles.selectedLotCard}>
             <View style={styles.selectedLotIcon}>
-              <Icon name="layers-outline" size={16} color={theme.colors.primary} />
+              <Icon
+                name="layers-outline"
+                size={16}
+                color={theme.colors.primary}
+              />
             </View>
             <View style={styles.selectedLotBody}>
-              <Text style={styles.selectedLotLabel}>{t('collect.accountType.selected')}</Text>
+              <Text style={styles.selectedLotLabel}>
+                {t("collect.accountType.selected")}
+              </Text>
               <Text style={styles.selectedLotName} numberOfLines={1}>
                 {currentLotLabel}
               </Text>
@@ -775,21 +830,37 @@ export function CollectScreen() {
         )}
       </Card>
 
-      <Modal transparent animationType="fade" visible={lotSwitcherVisible} onRequestClose={closeLotSwitcher}>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={lotSwitcherVisible}
+        onRequestClose={closeLotSwitcher}
+      >
         <View style={styles.lotModalBackdrop}>
-          <Pressable style={styles.lotModalDismiss} onPress={closeLotSwitcher} />
+          <Pressable
+            style={styles.lotModalDismiss}
+            onPress={closeLotSwitcher}
+          />
           <View style={styles.lotModalCard}>
-            <Text style={styles.lotModalTitle}>{t('collect.accountType.modalTitle')}</Text>
+            <Text style={styles.lotModalTitle}>
+              {t("collect.accountType.modalTitle")}
+            </Text>
             <Text style={styles.lotModalSubtitle}>
-              {t('collect.accountType.modalCurrent', { label: currentLotLabel })}
+              {t("collect.accountType.modalCurrent", {
+                label: currentLotLabel,
+              })}
             </Text>
 
             <View style={styles.lotSearchRow}>
-              <Icon name="search-outline" size={16} color={theme.colors.muted} />
+              <Icon
+                name="search-outline"
+                size={16}
+                color={theme.colors.muted}
+              />
               <TextInput
                 value={lotQuery}
                 onChangeText={setLotQuery}
-                placeholder={t('collect.accountType.searchPlaceholder')}
+                placeholder={t("collect.accountType.searchPlaceholder")}
                 placeholderTextColor={theme.colors.muted}
                 style={styles.lotSearchInput}
                 autoCapitalize="none"
@@ -798,7 +869,7 @@ export function CollectScreen() {
             </View>
 
             <Text style={styles.lotCountText}>
-              {t('collect.accountType.optionsCount', {
+              {t("collect.accountType.optionsCount", {
                 filtered: filteredLotOptions.length,
                 total: lotOptions.length,
               })}
@@ -807,7 +878,7 @@ export function CollectScreen() {
             {filteredLotOptions.length === 0 ? (
               <View style={styles.lotEmptyState}>
                 <Text style={styles.lotEmptyStateText}>
-                  {t('collect.accountType.noResults')}
+                  {t("collect.accountType.noResults")}
                 </Text>
               </View>
             ) : (
@@ -827,18 +898,22 @@ export function CollectScreen() {
 
             <View style={styles.lotModalActions}>
               <Button
-                title={t('common.cancel')}
+                title={t("common.cancel")}
                 variant="ghost"
                 onPress={closeLotSwitcher}
                 style={styles.lotActionButton}
               />
               <Button
-                title={canApplyLotSelection
-                  ? t('collect.accountType.buttonApplySelect')
-                  : t('collect.accountType.buttonAlreadySelected')}
+                title={
+                  canApplyLotSelection
+                    ? t("collect.accountType.buttonApplySelect")
+                    : t("collect.accountType.buttonAlreadySelected")
+                }
                 onPress={() => void applyLotSelection()}
                 disabled={!canApplyLotSelection}
-                iconLeft={canApplyLotSelection ? 'swap-horizontal-outline' : undefined}
+                iconLeft={
+                  canApplyLotSelection ? "swap-horizontal-outline" : undefined
+                }
                 style={styles.lotActionButton}
               />
             </View>
@@ -849,8 +924,8 @@ export function CollectScreen() {
       {/* PENDING SUMMARY */}
       <Card>
         <SectionHeader
-          title={t('collect.pending.title')}
-          subtitle={t('collect.pending.subtitle')}
+          title={t("collect.pending.title")}
+          subtitle={t("collect.pending.subtitle")}
           icon="time-outline"
         />
 
@@ -863,21 +938,23 @@ export function CollectScreen() {
             <View style={styles.statsGrid}>
               <View style={styles.statTile}>
                 <Text style={styles.statValue}>{pendingCount}</Text>
-                <Text style={styles.statLabel}>{t('collect.pending.saved')}</Text>
+                <Text style={styles.statLabel}>
+                  {t("collect.pending.saved")}
+                </Text>
               </View>
 
               <View style={styles.statTile}>
-                <Text style={styles.statValue}>
-                  {remainingCount}
+                <Text style={styles.statValue}>{remainingCount}</Text>
+                <Text style={styles.statLabel}>
+                  {t("collect.pending.remaining")}
                 </Text>
-                <Text style={styles.statLabel}>{t('collect.pending.remaining')}</Text>
               </View>
 
               <View style={styles.statTile}>
-                <Text style={styles.statValue}>
-                  {formatINR(pendingTotal)}
+                <Text style={styles.statValue}>{formatINR(pendingTotal)}</Text>
+                <Text style={styles.statLabel}>
+                  {t("collect.pending.amount")}
                 </Text>
-                <Text style={styles.statLabel}>{t('collect.pending.amount')}</Text>
               </View>
             </View>
 
@@ -886,16 +963,14 @@ export function CollectScreen() {
                 style={[
                   styles.progressFill,
                   {
-                    width: `${Math.round(
-                      collectionProgress * 100
-                    )}%`,
+                    width: `${Math.round(collectionProgress * 100)}%`,
                   },
                 ]}
               />
             </View>
 
             <Text style={styles.kv}>
-              {t('collect.pending.progress', {
+              {t("collect.pending.progress", {
                 percent: Math.round(collectionProgress * 100),
                 pendingCount,
                 totalAccounts,
@@ -907,17 +982,15 @@ export function CollectScreen() {
             {pendingEntries.length === 0 ? (
               <EmptyState
                 icon="receipt-outline"
-                title={t('collect.pending.emptyTitle')}
-                message={t('collect.pending.emptyMessage')}
+                title={t("collect.pending.emptyTitle")}
+                message={t("collect.pending.emptyMessage")}
               />
             ) : (
               <FlatList
-                data={pendingEntries}
+                data={sortedPendingEntries}
                 keyExtractor={(e) => e.id}
                 scrollEnabled={false}
-                ItemSeparatorComponent={() => (
-                  <View style={styles.sep} />
-                )}
+                ItemSeparatorComponent={() => <View style={styles.sep} />}
                 renderItem={({ item }) => (
                   <Pressable
                     onPress={() => openAccount(item.accountId)}
@@ -926,30 +999,46 @@ export function CollectScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.pendingItemHeader}>
                         <View style={styles.pendingClientLine}>
-                          <Icon name="person-outline" size={14} color={theme.colors.primary} />
+                          <Icon
+                            name="person-outline"
+                            size={14}
+                            color={theme.colors.primary}
+                          />
                           <Text style={styles.rowTitle}>
                             {localizeClientName(item.clientName)}
                           </Text>
                         </View>
-                        
+
                         <View style={styles.pendingAccountChip}>
-                          <Icon name="card-outline" size={12} color={theme.colors.primary} />
+                          <Icon
+                            name="card-outline"
+                            size={12}
+                            color={theme.colors.primary}
+                          />
                           <Text style={styles.pendingAccountText}>
                             {item.accountNo}
                           </Text>
                         </View>
                       </View>
-                      
+
                       <View style={styles.pendingDetails}>
                         <View style={styles.pendingDetailItem}>
-                          <Icon name="cash-outline" size={12} color={theme.colors.success} />
+                          <Icon
+                            name="cash-outline"
+                            size={12}
+                            color={theme.colors.success}
+                          />
                           <Text style={[styles.rowSub, styles.pendingAmount]}>
                             {formatINR(item.collectedPaise)}
                           </Text>
                         </View>
-                        
+
                         <View style={styles.pendingDetailItem}>
-                          <Icon name="calendar-outline" size={12} color={theme.colors.muted} />
+                          <Icon
+                            name="calendar-outline"
+                            size={12}
+                            color={theme.colors.muted}
+                          />
                           <Text style={styles.rowSub}>
                             {item.collectionDate}
                           </Text>
@@ -973,18 +1062,18 @@ const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     row: { paddingVertical: 12 },
     matchTop: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
-    clientLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    rowTitle: { fontSize: 15, fontWeight: '900', color: theme.colors.text },
+    clientLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+    rowTitle: { fontSize: 15, fontWeight: "900", color: theme.colors.text },
     rowSub: { fontSize: 12, color: theme.colors.muted },
     sep: { height: 1, backgroundColor: theme.colors.border },
 
     accountChip: {
       fontSize: 11,
-      fontWeight: '800',
+      fontWeight: "800",
       color: theme.colors.primary,
       paddingHorizontal: 10,
       paddingVertical: 6,
@@ -994,13 +1083,13 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.primarySoft,
     },
     accountTypeActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 8,
     },
     accountTypeButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 6,
       paddingHorizontal: 10,
       paddingVertical: 6,
@@ -1011,7 +1100,7 @@ const makeStyles = (theme: Theme) =>
     },
     accountTypeButtonText: {
       fontSize: 12,
-      fontWeight: '800',
+      fontWeight: "800",
       color: theme.colors.primary,
     },
     selectedLotCard: {
@@ -1021,8 +1110,8 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surfaceTint,
       paddingHorizontal: 10,
       paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 10,
     },
     selectedLotIcon: {
@@ -1032,8 +1121,8 @@ const makeStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     selectedLotBody: {
       flex: 1,
@@ -1041,15 +1130,15 @@ const makeStyles = (theme: Theme) =>
     },
     selectedLotLabel: {
       fontSize: 11,
-      fontWeight: '700',
+      fontWeight: "700",
       color: theme.colors.muted,
-      textTransform: 'uppercase',
+      textTransform: "uppercase",
       letterSpacing: 0.3,
     },
     selectedLotName: {
       marginTop: 2,
       fontSize: 14,
-      fontWeight: '900',
+      fontWeight: "900",
       color: theme.colors.text,
     },
     selectedLotCountChip: {
@@ -1060,26 +1149,26 @@ const makeStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
       backgroundColor: theme.colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     selectedLotCountText: {
       fontSize: 12,
-      fontWeight: '900',
+      fontWeight: "900",
       color: theme.colors.primary,
     },
     lotModalBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      alignItems: 'center',
-      justifyContent: 'center',
+      backgroundColor: "rgba(0,0,0,0.45)",
+      alignItems: "center",
+      justifyContent: "center",
       padding: theme.spacing.lg,
     },
     lotModalDismiss: {
       ...StyleSheet.absoluteFillObject,
     },
     lotModalCard: {
-      width: '100%',
+      width: "100%",
       maxWidth: 460,
       borderRadius: theme.radii.lg,
       borderWidth: 1,
@@ -1090,7 +1179,7 @@ const makeStyles = (theme: Theme) =>
     },
     lotModalTitle: {
       fontSize: 17,
-      fontWeight: '900',
+      fontWeight: "900",
       color: theme.colors.text,
     },
     lotModalSubtitle: {
@@ -1105,8 +1194,8 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surfaceTint,
       borderRadius: theme.radii.sm + 2,
       paddingHorizontal: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 8,
     },
     lotSearchInput: {
@@ -1118,7 +1207,7 @@ const makeStyles = (theme: Theme) =>
     lotCountText: {
       marginTop: 8,
       fontSize: 12,
-      fontWeight: '700',
+      fontWeight: "700",
       color: theme.colors.muted,
     },
     lotList: {
@@ -1140,13 +1229,15 @@ const makeStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 10,
       paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 8,
     },
     lotRowCurrent: {
       borderColor: theme.colors.success,
-      backgroundColor: theme.isDark ? 'rgba(67,217,161,0.12)' : 'rgba(22,163,74,0.08)',
+      backgroundColor: theme.isDark
+        ? "rgba(67,217,161,0.12)"
+        : "rgba(22,163,74,0.08)",
     },
     lotRowSelected: {
       borderColor: theme.colors.primary,
@@ -1159,7 +1250,7 @@ const makeStyles = (theme: Theme) =>
     },
     lotRowTitle: {
       fontSize: 14,
-      fontWeight: '900',
+      fontWeight: "900",
       color: theme.colors.text,
     },
     lotRowSub: {
@@ -1177,7 +1268,9 @@ const makeStyles = (theme: Theme) =>
     },
     lotRowBadgeCurrent: {
       borderColor: theme.colors.success,
-      backgroundColor: theme.isDark ? 'rgba(67,217,161,0.2)' : 'rgba(22,163,74,0.14)',
+      backgroundColor: theme.isDark
+        ? "rgba(67,217,161,0.2)"
+        : "rgba(22,163,74,0.14)",
     },
     lotRowBadgeSelected: {
       borderColor: theme.colors.primary,
@@ -1185,7 +1278,7 @@ const makeStyles = (theme: Theme) =>
     },
     lotRowBadgeText: {
       fontSize: 11,
-      fontWeight: '800',
+      fontWeight: "800",
       color: theme.colors.muted,
     },
     lotRowBadgeTextCurrent: {
@@ -1208,15 +1301,15 @@ const makeStyles = (theme: Theme) =>
     },
     lotModalActions: {
       marginTop: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 10,
     },
     lotActionButton: {
       flex: 1,
     },
 
-    statsGrid: { flexDirection: 'row', gap: 8 },
+    statsGrid: { flexDirection: "row", gap: 8 },
     statTile: {
       flex: 1,
       padding: 10,
@@ -1224,7 +1317,7 @@ const makeStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
-    statValue: { fontSize: 16, fontWeight: '900', color: theme.colors.text },
+    statValue: { fontSize: 16, fontWeight: "900", color: theme.colors.text },
     statLabel: { fontSize: 11, color: theme.colors.muted },
 
     progressTrack: {
@@ -1232,28 +1325,28 @@ const makeStyles = (theme: Theme) =>
       height: 8,
       borderRadius: 20,
       backgroundColor: theme.colors.surfaceTint,
-      overflow: 'hidden',
+      overflow: "hidden",
     },
-    progressFill: { height: '100%', backgroundColor: theme.colors.primary },
+    progressFill: { height: "100%", backgroundColor: theme.colors.primary },
 
     kv: { marginTop: 6, fontSize: 13, color: theme.colors.text },
-    
+
     // New styles for pending items with icons
     pendingItemHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: 8,
     },
     pendingClientLine: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 6,
       flex: 1,
     },
     pendingAccountChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 4,
       paddingHorizontal: 8,
       paddingVertical: 4,
@@ -1264,25 +1357,22 @@ const makeStyles = (theme: Theme) =>
     },
     pendingAccountText: {
       fontSize: 11,
-      fontWeight: '700',
+      fontWeight: "700",
       color: theme.colors.primary,
     },
     pendingDetails: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 16,
       marginLeft: 20, // Aligns with the client name icon
     },
     pendingDetailItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection: "row",
+      alignItems: "center",
       gap: 4,
     },
     pendingAmount: {
-      fontWeight: '700',
+      fontWeight: "700",
       color: theme.colors.success,
     },
   });
-
-
-
