@@ -249,7 +249,7 @@ function MainTabs() {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.border,
             borderTopWidth: 1,
-            height: 45 + tabBarBottomInset,
+            height: 60 + tabBarBottomInset,
             paddingTop: 4,
             paddingBottom: 8 + tabBarBottomInset,
             paddingHorizontal: 8,
