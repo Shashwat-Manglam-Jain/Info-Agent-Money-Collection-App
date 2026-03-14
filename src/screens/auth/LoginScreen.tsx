@@ -30,21 +30,32 @@ export function LoginScreen() {
     setBusy(true);
     try {
       const ok = await signIn({ agentCode, pin });
-      if (!ok) {
-        Alert.alert(
-          t("auth.login.signInFailedTitle"),
-          t("auth.login.signInFailedMessage"),
-        );
+     if (!ok) {
+  Alert.alert(
+    t("auth.login.signInFailedTitle"),
+    t("auth.login.signInFailedMessage"),
+    [
+      { 
+        text: t("common.ok"),
+        onPress: () => {},
+        style: "default"
       }
+    ]
+  );
+}
     } finally {
       setBusy(false);
     }
   };
 
+  const handleSignUp = () => {
+    nav.navigate("Register");
+  };
+
   return (
     <AuthScreen
       title={t("auth.login.title")}
-      heroImage={images.Logo} // Add your hero image here
+      heroImage={images.Logo}
     >
       <Text style={styles.subtitle}>{t("auth.login.subtitle")}</Text>
 
@@ -71,57 +82,25 @@ export function LoginScreen() {
             autoCorrect={false}
           />
         </View>
+        
         <Button
           title={busy ? t("auth.login.signingIn") : t("auth.login.signIn")}
           iconLeft="log-in-outline"
           onPress={handleSignIn}
           loading={busy}
-          disabled={
-            !agentCode.trim() || pin.trim().length < 4
-          }
+          disabled={!agentCode.trim() || pin.trim().length < 4}
         />
-        <View style={styles.secondaryActions}>
-          <Button
-            title={t("auth.login.registerAgentPin")}
-            variant="secondary"
-            iconLeft="person-outline"
-            onPress={() => nav.navigate("Register")}
-          />
-          <Button
-            title={t("actions.importDailyFile")}
-            variant="ghost"
-            iconLeft="cloud-download-outline"
-            onPress={() =>
-              nav.navigate("ImportMasterData", {
-                mode: "replace",
-                category: "daily",
-              })
-            }
-          />
-          <Button
-            title={t("actions.importMonthlyFile")}
-            variant="ghost"
-            iconLeft="document-text-outline"
-            onPress={() =>
-              nav.navigate("ImportMasterData", {
-                mode: "replace",
-                category: "monthly",
-              })
-            }
-          />
-          <Button
-            title={t("actions.importLoanFile")}
-            variant="ghost"
-            iconLeft="cash-outline"
-            onPress={() =>
-              nav.navigate("ImportMasterData", {
-                mode: "replace",
-                category: "loan",
-              })
-            }
-          />
+        
+        <View style={styles.signupContainer}>
+          <Text style={styles.signupText}>
+            {t("auth.login.noAccount")}{" "}
+          </Text>
+          <Text style={styles.signupLink} onPress={handleSignUp}>
+            {t("auth.login.signUp")}
+          </Text>
         </View>
       </Card>
+      
       <View style={styles.poweredByContainer}>
         <View style={styles.poweredByLine} />
         <Text style={styles.poweredByText}>
@@ -145,21 +124,27 @@ const makeStyles = (theme: Theme) =>
     formFields: {
       gap: 12,
     },
-    secondaryActions: {
-      gap: 8,
+    signupContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: 8,
+      paddingVertical: 8,
     },
-    supportText: {
-      color: theme.colors.mutedOnDark,
-      fontSize: 12,
-      textAlign: "center",
-      lineHeight: 18,
-      paddingHorizontal: 6,
+    signupText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    signupLink: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: "600",
+      textDecorationLine: "underline",
     },
     poweredByContainer: {
       flexDirection: "row",
       alignItems: "center",
       width: "100%",
-      // paddingTop:20
     },
     poweredByLine: {
       flex: 1,

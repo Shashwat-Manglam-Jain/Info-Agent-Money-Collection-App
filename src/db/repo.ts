@@ -195,6 +195,20 @@ export async function authenticateAgent(
 }
 
 export type UpdateAgentPinResult = 'updated' | 'agent_not_found' | 'ambiguous_agent_code';
+export async function getAgentByCode(
+  db: SQLiteDatabase, 
+  agentCode: string
+): Promise<Agent | null> {
+  const row = await db.getFirstAsync<any>(
+    `SELECT a.*, s.code as society_code, s.name as society_name
+     FROM agents a
+     JOIN societies s ON s.id = a.society_id
+     WHERE a.code = ? AND a.is_active = 1
+     LIMIT 1;`,
+    agentCode.trim()
+  );
+  return row ? mapAgent(row) : null;
+}
 
 export async function updateAgentPinByCode(
   db: SQLiteDatabase,

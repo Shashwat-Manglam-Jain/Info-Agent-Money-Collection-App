@@ -204,6 +204,11 @@ export const EN_TRANSLATIONS = {
   "auth.login.signInFailedTitle": "Sign in failed",
   "auth.login.signInFailedMessage": "Check Agent Code and PIN.",
   "auth.login.registerAgentPin": "Register Agent PIN",
+   "auth.login.noAccount": "Don't have an account?",  // ✅ ADDED
+  "auth.login.signUp": "Sign up", 
+  "auth.register.haveAccount": "Already have an account?",
+"auth.register.signIn": "Sign In",
+"auth.register.alreadyRegistered": "User Already Registered",
 
   "auth.register.title": "Register",
   "auth.register.subtitle": "Create a secure PIN for your agent profile",
@@ -429,7 +434,7 @@ const HI_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
 
   "auth.shared.agentCode": "एजेंट कोड",
   "auth.shared.pin": "पिन",
-
+  
   "auth.login.title": "वापसी पर स्वागत है",
   "auth.login.subtitle": "अपने खाते में साइन इन करें",
   "auth.login.agentCodePlaceholder": "जैसे AG01",
@@ -439,6 +444,11 @@ const HI_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "auth.login.signInFailedTitle": "साइन इन विफल",
   "auth.login.signInFailedMessage": "एजेंट कोड और पिन जांचें।",
   "auth.login.registerAgentPin": "एजेंट पिन रजिस्टर करें",
+    "auth.login.noAccount": "खाता नहीं है?",          // ✅ ADDED
+  "auth.login.signUp": "साइन अप करें", 
+  "auth.register.haveAccount": "पहले से खाता है?",
+"auth.register.signIn": "साइन इन करें", 
+"auth.register.alreadyRegistered": "उपयोगकर्ता पहले से पंजीकृत है",
 
   "auth.register.title": "रजिस्टर",
   "auth.register.subtitle": "अपने एजेंट प्रोफाइल के लिए सुरक्षित पिन बनाएं",
@@ -673,6 +683,11 @@ const MR_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "auth.login.signInFailedTitle": "साइन इन अयशस्वी",
   "auth.login.signInFailedMessage": "एजंट कोड आणि पिन तपासा.",
   "auth.login.registerAgentPin": "एजंट पिन नोंदणी करा",
+   "auth.login.noAccount": "खाते नाही?",               // ✅ ADDED
+  "auth.login.signUp": "साइन अप करा", 
+  "auth.register.haveAccount": "आधीपासून खाते आहे?",
+"auth.register.signIn": "साइन इन करा",
+"auth.register.alreadyRegistered": "वापरकर्ता आधीच नोंदणीकृत आहे",
 
   "auth.register.title": "नोंदणी",
   "auth.register.subtitle": "तुमच्या एजंट प्रोफाइलसाठी सुरक्षित पिन तयार करा",

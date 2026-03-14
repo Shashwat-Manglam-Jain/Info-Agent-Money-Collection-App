@@ -13,7 +13,7 @@ import { useI18n } from "../../i18n";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 import { images } from "../../assets/images";
-import { updateAgentPinByCode } from "../../db/repo";
+import { updateAgentPinByCode, getAgentByCode } from "../../db/repo";
 
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -31,9 +31,27 @@ export function RegisterScreen() {
     pin.length > 0 && confirmPin.length > 0 && pin !== confirmPin;
   const pinTooShort = pin.length > 0 && pin.length < 4;
 
+  const handleSignIn = () => {
+    // Navigate to Login screen for existing users
+    nav.navigate("Login");
+  };
+
+  const checkIfUserExists = async (agentCode: string): Promise<boolean> => {
+    if (!db) return false;
+    try {
+      const agent = await getAgentByCode(db, agentCode);
+      return !!agent; // Returns true if agent exists
+    } catch (error) {
+      console.error("Error checking agent:", error);
+      return false;
+    }
+  };
+
   const submit = async () => {
     if (!db) return;
     const trimmedAgentCode = agentCode.trim();
+    
+    // Validate input
     if (!trimmedAgentCode) {
       Alert.alert(
         t("auth.register.missingAgentCodeTitle"),
@@ -58,18 +76,49 @@ export function RegisterScreen() {
 
     setBusy(true);
     try {
+      // First check if user is already registered
+      const userExists = await checkIfUserExists(trimmedAgentCode);
+      
+ if (userExists) {
+  // User already registered - show alert and automatically navigate to sign in
+  Alert.alert(
+    t("auth.register.alreadyRegistered"), // "User Already Registered" in selected language
+    "", // Empty message as requested
+    [
+      { 
+        text: t("common.ok"), // "OK" in selected language
+        onPress: () => nav.navigate("Login"),
+        style: "default"
+      }
+    ]
+  );
+  return;
+}
+
+      // User doesn't exist - proceed with registration
       const result = await updateAgentPinByCode(db, {
         agentCode: trimmedAgentCode,
         pin,
       });
 
       if (result === "updated") {
+        // First-time registration - try to sign in and go to dashboard
         const signedIn = await signIn({ agentCode: trimmedAgentCode, pin });
-        if (signedIn) return;
+        if (signedIn) {
+          // Successfully signed in - navigate to main dashboard
+          // Replace "MainTabs" with your actual main dashboard route name
+          nav.reset({
+            index: 0,
+            routes: [{ name: "MainTabs" }],
+          });
+          return;
+        }
+        
+        // If sign in fails after registration (shouldn't happen, but just in case)
         Alert.alert(
           t("auth.register.pinSavedTitle"),
           t("auth.register.pinSavedMessage"),
-          [{ text: t("common.ok"), onPress: () => nav.goBack() }]
+          [{ text: t("common.ok"), onPress: () => nav.navigate("Login") }]
         );
         return;
       }
@@ -82,6 +131,7 @@ export function RegisterScreen() {
         return;
       }
 
+      // Agent not found in database (no imported data)
       Alert.alert(
         t("auth.register.agentNotFoundTitle"),
         t("auth.register.agentNotFoundMessage")
@@ -146,46 +196,13 @@ export function RegisterScreen() {
           }
         />
 
-        <View style={styles.secondaryActions}>
-          <Button
-            title={t("actions.importDailyFile")}
-            variant="ghost"
-            iconLeft="cloud-download-outline"
-            onPress={() =>
-              nav.navigate("ImportMasterData", {
-                mode: "replace",
-                category: "daily",
-              })
-            }
-          />
-          <Button
-            title={t("actions.importMonthlyFile")}
-            variant="ghost"
-            iconLeft="document-text-outline"
-            onPress={() =>
-              nav.navigate("ImportMasterData", {
-                mode: "replace",
-                category: "monthly",
-              })
-            }
-          />
-          <Button
-            title={t("actions.importLoanFile")}
-            variant="ghost"
-            iconLeft="cash-outline"
-            onPress={() =>
-              nav.navigate("ImportMasterData", {
-                mode: "replace",
-                category: "loan",
-              })
-            }
-          />
-          <Button
-            title={t("auth.register.backToSignIn")}
-            variant="secondary"
-            iconLeft="arrow-back-outline"
-            onPress={() => nav.goBack()}
-          />
+        <View style={styles.signinContainer}>
+          <Text style={styles.signinText}>
+            {t("auth.register.haveAccount")}{" "}
+          </Text>
+          <Text style={styles.signinLink} onPress={handleSignIn}>
+            {t("auth.register.signIn")}
+          </Text>
         </View>
       </Card>
 
@@ -211,6 +228,23 @@ const makeStyles = (theme: Theme) =>
     },
     formFields: {
       gap: 12,
+    },
+    signinContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: 8,
+      paddingVertical: 8,
+    },
+    signinText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+    },
+    signinLink: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: "600",
+      textDecorationLine: "underline",
     },
     secondaryActions: {
       gap: 8,
