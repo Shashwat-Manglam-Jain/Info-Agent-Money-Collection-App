@@ -13,7 +13,7 @@ import { useI18n } from "../../i18n";
 import { useTheme } from "../../theme";
 import type { Theme } from "../../theme";
 import { images } from "../../assets/images";
-import { updateAgentPinByCode, getAgentByCode } from "../../db/repo";
+import { updateAgentPinByCode, getAgentByCode, createAgent } from "../../db/repo";
 
 export function RegisterScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -32,7 +32,6 @@ export function RegisterScreen() {
   const pinTooShort = pin.length > 0 && pin.length < 4;
 
   const handleSignIn = () => {
-    // Navigate to Login screen for existing users
     nav.navigate("Login");
   };
 
@@ -40,7 +39,7 @@ export function RegisterScreen() {
     if (!db) return false;
     try {
       const agent = await getAgentByCode(db, agentCode);
-      return !!agent; // Returns true if agent exists
+      return !!agent;
     } catch (error) {
       console.error("Error checking agent:", error);
       return false;
@@ -48,8 +47,18 @@ export function RegisterScreen() {
   };
 
   const submit = async () => {
-    if (!db) return;
+    console.log("Submit started");
+    
+    if (!db) {
+      Alert.alert(
+        t("common.error"),
+        "Database not initialized"
+      );
+      return;
+    }
+    
     const trimmedAgentCode = agentCode.trim();
+    console.log("Agent code:", trimmedAgentCode);
     
     // Validate input
     if (!trimmedAgentCode) {
@@ -76,54 +85,104 @@ export function RegisterScreen() {
 
     setBusy(true);
     try {
-      // First check if user is already registered
+      // Check if user already exists
+      console.log("Checking if user exists...");
       const userExists = await checkIfUserExists(trimmedAgentCode);
+      console.log("User exists:", userExists);
       
- if (userExists) {
-  // User already registered - show alert and automatically navigate to sign in
-  Alert.alert(
-    t("auth.register.alreadyRegistered"), // "User Already Registered" in selected language
-    "", // Empty message as requested
-    [
-      { 
-        text: t("common.ok"), // "OK" in selected language
-        onPress: () => nav.navigate("Login"),
-        style: "default"
-      }
-    ]
-  );
-  return;
-}
-
-      // User doesn't exist - proceed with registration
-      const result = await updateAgentPinByCode(db, {
-        agentCode: trimmedAgentCode,
-        pin,
-      });
-
-      if (result === "updated") {
-        // First-time registration - try to sign in and go to dashboard
-        const signedIn = await signIn({ agentCode: trimmedAgentCode, pin });
-        if (signedIn) {
-          // Successfully signed in - navigate to main dashboard
-          // Replace "MainTabs" with your actual main dashboard route name
-          nav.reset({
-            index: 0,
-            routes: [{ name: "MainTabs" }],
-          });
-          return;
-        }
-        
-        // If sign in fails after registration (shouldn't happen, but just in case)
+      if (userExists) {
+        console.log("User already exists, navigating to login");
+        setBusy(false);
         Alert.alert(
-          t("auth.register.pinSavedTitle"),
-          t("auth.register.pinSavedMessage"),
-          [{ text: t("common.ok"), onPress: () => nav.navigate("Login") }]
+          t("auth.register.alreadyRegistered"),
+          "",
+          [
+            { 
+              text: t("common.ok"),
+              onPress: () => nav.navigate("Login"),
+              style: "default"
+            }
+          ]
         );
         return;
       }
 
+      // Try to update PIN first (for existing agents)
+      console.log("Attempting to update PIN...");
+      let result = await updateAgentPinByCode(db, {
+        agentCode: trimmedAgentCode,
+        pin,
+      });
+      
+      console.log("Update result:", result);
+
+      // If agent not found, create a new agent
+      if (result === "agent_not_found") {
+        console.log("Agent not found, creating new agent...");
+        
+        const created = await createAgent(db, {
+          agentCode: trimmedAgentCode,
+          pin: pin,
+          name: `Agent ${trimmedAgentCode}`,
+        });
+        
+        console.log("Agent created:", created);
+        
+        if (created) {
+          result = "updated"; // Treat as successful
+        } else {
+          setBusy(false);
+          Alert.alert(
+            "Error",
+            "Failed to create new agent. Please try again."
+          );
+          return;
+        }
+      }
+
+      // If registration successful
+      if (result === "updated") {
+        console.log("Registration successful, attempting sign in...");
+        
+        // Wait a moment for database to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Automatically sign in
+        try {
+          const signedIn = await signIn({ agentCode: trimmedAgentCode, pin });
+          console.log("Sign in result:", signedIn);
+          
+          if (signedIn) {
+            console.log("Sign in successful, navigating to MainTabs");
+            // Navigate to main dashboard
+            nav.reset({
+              index: 0,
+              routes: [{ name: "MainTabs" }],
+            });
+          } else {
+            console.log("Sign in failed after registration");
+            setBusy(false);
+            Alert.alert(
+              "Registration Successful",
+              "Your account has been created. Please sign in with your credentials.",
+              [{ text: "OK", onPress: () => nav.navigate("Login") }]
+            );
+          }
+        } catch (signInError) {
+          console.error("Sign in error:", signInError);
+          setBusy(false);
+          Alert.alert(
+            "Registration Successful",
+            "Your account has been created. Please sign in with your credentials.",
+            [{ text: "OK", onPress: () => nav.navigate("Login") }]
+          );
+        }
+        return;
+      }
+
       if (result === "ambiguous_agent_code") {
+        console.log("Ambiguous agent code");
+        setBusy(false);
         Alert.alert(
           t("auth.register.agentCodeNotUniqueTitle"),
           t("auth.register.agentCodeNotUniqueMessage")
@@ -131,13 +190,21 @@ export function RegisterScreen() {
         return;
       }
 
-      // Agent not found in database (no imported data)
-      Alert.alert(
-        t("auth.register.agentNotFoundTitle"),
-        t("auth.register.agentNotFoundMessage")
-      );
-    } finally {
+      // If we get here, something unexpected happened
+      console.log("Unexpected result:", result);
       setBusy(false);
+      Alert.alert(
+        t("common.error"),
+        t("auth.register.registrationError")
+      );
+      
+    } catch (error) {
+      console.error("Registration error details:", error);
+      setBusy(false);
+      Alert.alert(
+        t("common.error"),
+        t("auth.register.registrationError")
+      );
     }
   };
 
@@ -245,16 +312,6 @@ const makeStyles = (theme: Theme) =>
       fontSize: 14,
       fontWeight: "600",
       textDecorationLine: "underline",
-    },
-    secondaryActions: {
-      gap: 8,
-    },
-    supportText: {
-      color: theme.colors.mutedOnDark,
-      fontSize: 12,
-      textAlign: "center",
-      lineHeight: 18,
-      paddingHorizontal: 6,
     },
     poweredByContainer: {
       flexDirection: "row",

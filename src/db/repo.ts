@@ -194,6 +194,71 @@ export async function authenticateAgent(
   return matched;
 }
 
+// Add this function to your repo.ts file
+export async function createAgent(
+  db: SQLiteDatabase,
+  params: {
+    agentCode: string;
+    pin: string;
+    name?: string;
+  }
+): Promise<boolean> {
+  try {
+    console.log("Creating new agent with params:", params);
+    
+    // First, check if there's a default society or create one
+    let societyId: string;
+    
+    // Check if any society exists
+    const existingSociety = await db.getFirstAsync<{ id: string }>(
+      'SELECT id FROM societies LIMIT 1;'
+    );
+    
+    if (existingSociety) {
+      societyId = existingSociety.id;
+    } else {
+      // Create a default society
+      societyId = Crypto.randomUUID();
+      await db.runAsync(
+        'INSERT INTO societies (id, code, name) VALUES (?, ?, ?);',
+        societyId,
+        'DEFAULT',
+        'Default Society'
+      );
+      console.log("Created default society with ID:", societyId);
+    }
+
+    // Generate PIN hash (matching your authenticateAgent method)
+    const pinHash = await sha256(`${societyId}:${params.pin}`);
+    
+    // Generate UUID for agent
+    const agentId = Crypto.randomUUID();
+    
+    // Check if the agents table has the correct columns
+    // Based on your schema, it should have: id, society_id, code, name, phone, is_active, pin_hash
+    // Note: No created_at column!
+    
+    // Insert the new agent with correct columns
+    await db.runAsync(
+      `INSERT INTO agents (
+        id, society_id, code, name, phone, is_active, pin_hash
+      ) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      agentId,
+      societyId,
+      params.agentCode,
+      params.name || `Agent ${params.agentCode}`,
+      null, // phone
+      1,    // is_active (true)
+      pinHash
+    );
+    
+    console.log("Agent created successfully with ID:", agentId);
+    return true;
+  } catch (error) {
+    console.error('Error creating agent:', error);
+    return false;
+  }
+}
 export type UpdateAgentPinResult = 'updated' | 'agent_not_found' | 'ambiguous_agent_code';
 export async function getAgentByCode(
   db: SQLiteDatabase, 

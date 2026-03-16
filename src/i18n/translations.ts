@@ -9,6 +9,7 @@ export const EN_TRANSLATIONS = {
   "common.english": "English",
   "common.hindi": "Hindi",
   "common.marathi": "Marathi",
+  "common.error": "Error",
   "branding.poweredBy": "Powered by",
 
   "actions.importDailyFile": "Import Daily File",
@@ -209,6 +210,11 @@ export const EN_TRANSLATIONS = {
   "auth.register.haveAccount": "Already have an account?",
 "auth.register.signIn": "Sign In",
 "auth.register.alreadyRegistered": "User Already Registered",
+// "auth.register.alreadyRegistered": "User Already Registered",
+"auth.register.registrationComplete": "Registration Complete",
+"auth.register.signInFailed": "Registration successful but automatic sign-in failed. Please manually sign in.",
+"auth.register.pleaseSignIn": "Your PIN has been saved. Please sign in with your credentials.",
+"auth.register.registrationError": "An error occurred during registration. Please try again.",
 
   "auth.register.title": "Register",
   "auth.register.subtitle": "Create a secure PIN for your agent profile",
@@ -250,6 +256,7 @@ const HI_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "common.english": "अंग्रेजी",
   "common.hindi": "हिंदी",
   "common.marathi": "मराठी",
+  "common.error": "त्रुटि",
   "branding.poweredBy": "द्वारा संचालित",
 
   "actions.importDailyFile": "डेली फाइल इम्पोर्ट करें",
@@ -449,6 +456,10 @@ const HI_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "auth.register.haveAccount": "पहले से खाता है?",
 "auth.register.signIn": "साइन इन करें", 
 "auth.register.alreadyRegistered": "उपयोगकर्ता पहले से पंजीकृत है",
+"auth.register.registrationComplete": "पंजीकरण पूर्ण हुआ",
+"auth.register.pleaseSignIn": "आपका PIN सहेज लिया गया है। कृपया अपने क्रेडेंशियल्स से साइन इन करें।",
+"auth.register.registrationError": "पंजीकरण के दौरान एक त्रुटि हुई। कृपया पुनः प्रयास करें।",
+"auth.register.signInFailed": "पंजीकरण सफल हुआ लेकिन स्वचालित साइन-इन विफल रहा। कृपया मैन्युअली साइन इन करें।",
 
   "auth.register.title": "रजिस्टर",
   "auth.register.subtitle": "अपने एजेंट प्रोफाइल के लिए सुरक्षित पिन बनाएं",
@@ -488,6 +499,7 @@ const MR_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "common.english": "इंग्रजी",
   "common.hindi": "हिंदी",
   "common.marathi": "मराठी",
+ "common.error": "त्रुटी",
   "branding.poweredBy": "यांच्या द्वारे समर्थित",
 
   "actions.importDailyFile": "दैनिक फाइल आयात करा",
@@ -688,6 +700,10 @@ const MR_TRANSLATIONS: Partial<Record<TranslationKey, string>> = {
   "auth.register.haveAccount": "आधीपासून खाते आहे?",
 "auth.register.signIn": "साइन इन करा",
 "auth.register.alreadyRegistered": "वापरकर्ता आधीच नोंदणीकृत आहे",
+"auth.register.registrationComplete": "नोंदणी पूर्ण झाली",
+"auth.register.pleaseSignIn": "तुमचा PIN जतन केला गेला आहे. कृपया तुमच्या क्रेडेंशियल्सने साइन इन करा.",
+"auth.register.registrationError": "नोंदणी दरम्यान त्रुटी आली. कृपया पुन्हा प्रयत्न करा.",
+"auth.register.signInFailed": "नोंदणी यशस्वी झाली परंतु स्वयंचलित साइन-इन अयशस्वी झाले. कृपया स्वतः साइन इन करा.",
 
   "auth.register.title": "नोंदणी",
   "auth.register.subtitle": "तुमच्या एजंट प्रोफाइलसाठी सुरक्षित पिन तयार करा",
