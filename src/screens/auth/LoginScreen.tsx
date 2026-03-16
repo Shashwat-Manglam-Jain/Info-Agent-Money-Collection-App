@@ -116,7 +116,7 @@ export function LoginScreen() {
 const makeStyles = (theme: Theme) =>
   StyleSheet.create({
     formCard: {
-      gap: 14,
+      gap: 10,
       backgroundColor: theme.isDark
         ? "rgba(24,40,61,0.92)"
         : "rgba(255,255,255,0.96)",
