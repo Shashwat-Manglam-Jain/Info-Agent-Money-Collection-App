@@ -2217,23 +2217,14 @@ export function SyncScreen() {
           />
         </View>
       </Card>
-      <Card>
-        {accountCount === 0 ? (
-          <Button
-            title={t("sync.account.buttonGoToLoginRegister")}
-            variant="secondary"
-            iconLeft="log-in-outline"
-            onPress={() => nav.navigate("Login")}
-          />
-        ) : null}
-        <View style={{ height: accountCount === 0 ? 10 : 0 }} />
-        <Button
-          title={t("sync.account.buttonLogout")}
-          variant="danger"
-          iconLeft="log-out-outline"
-          onPress={signOut}
-        />
-      </Card>
+     <Card>
+  <Button
+    title={t("sync.account.buttonLogout")}
+    variant="danger"
+    iconLeft="log-out-outline"
+    onPress={signOut}
+  />
+</Card>
       {/* Date Picker Modal */}
       {showDatePicker && (
         <DateTimePicker
